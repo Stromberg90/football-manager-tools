@@ -1,0 +1,9 @@
+assets/*
+renders/*
+sia_format/*
+sia_dev_tools/*
+broken_files.txt
+__pycache__
+.mypy_cache
+.vscode
+sia_parser/src/main.rs

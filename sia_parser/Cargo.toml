@@ -1,0 +1,9 @@
+[package]
+name = "sia_parser"
+version = "0.1.0"
+authors = ["stromberg"]
+edition = "2018"
+
+[dependencies]
+byteorder = "1.3.4"
+nalgebra = "0.21.1"
