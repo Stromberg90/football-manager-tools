@@ -1,14 +1,14 @@
-#Football Manager Tools
+# Football Manager Tools
 
 Set of tools for working with Football Managers 3D mesh format(.sia)
 
 
-####Tools:
+#### Tools:
 - Blender Addons
 	- Import .sia
 	- Export .sia
 - Rust crate for parsing .sia files
-- ####Standalone Mesh(.sia) Viewer
+- #### Standalone Mesh(.sia) Viewer
 
 Mesh             |  Wireframe
 :-------------------------:|:-------------------------:
@@ -17,12 +17,12 @@ Mesh             |  Wireframe
 Ball replaced with burger mesh exported from blender.
 <img src="images/burger_ball.png" />
 
-####Notes
+#### Notes
 - Only tested on Football Manager 2020
 - No texture importing support yet, uv's are supported though
 - Blender import is not functional
 
-####Usage
+#### Usage
 1. Clone this repository
 2. Install Football Manager 2020
 3. Install Football Manager 2020 Resource Archiver
@@ -38,7 +38,7 @@ Ball replaced with burger mesh exported from blender.
 		3. Enabled addon and there should now be a `Football Manager 2020 Mesh (.sia)` entry under the import and export menu
 
 
-####Contributing
+#### Contributing
 Help is appreciated in anyway, however here is some parts I've had on my mind.
 - Testing on other versions of football manager
 - There are several parts of the sia format that I've yet to figure out.
