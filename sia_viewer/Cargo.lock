@@ -504,9 +504,9 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
 name = "kiss3d"
-version = "0.24.1"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29af8ebcec84061a12da7313d32f92f8ad9e9cc4be4d9e2727c0c197e0acc5ce"
+checksum = "d7de4aa5e6bc75bae91ee15ac113533f820b040e5493a04eeb5d131a561f15dd"
 dependencies = [
  "bitflags",
  "either",
@@ -545,12 +545,6 @@ checksum = "2cadb8e769f070c45df05c78c7520eb4cd17061d4ab262e43cfc68b4d00ac71c"
 dependencies = [
  "winapi",
 ]
-
-[[package]]
-name = "libm"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7d73b3f436185384286bd8098d17ec07c9a7d2388a6599f824d8502b529702a"
 
 [[package]]
 name = "line_drawing"
@@ -646,9 +640,9 @@ dependencies = [
 
 [[package]]
 name = "nalgebra"
-version = "0.21.1"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6b6147c3d50b4f3cdabfe2ecc94a0191fd3d6ad58aefd9664cf396285883486"
+checksum = "4a3f0b89b0a44cb7bb9b62c5e6fd485145ddc6bc14483ab005355e96029b3fbf"
 dependencies = [
  "approx",
  "generic-array",
@@ -664,9 +658,9 @@ dependencies = [
 
 [[package]]
 name = "ncollide3d"
-version = "0.23.2"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc05c110986c3e9d2028a865c8aa195739e4f720afcee2d4a3753dc11e0c4f46"
+checksum = "5d4ac20ca3005ba99e1778a36113a7d07e667cf460f0d43bb929be6f90278b27"
 dependencies = [
  "approx",
  "bitflags",
@@ -763,7 +757,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac267bcc07f48ee5f8935ab0d24f316fb722d7a1292e2913f0cc196b29ffd611"
 dependencies = [
  "autocfg 1.0.0",
- "libm",
 ]
 
 [[package]]
@@ -1296,9 +1289,9 @@ dependencies = [
 
 [[package]]
 name = "simba"
-version = "0.1.5"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb931b1367faadea6b1ab1c306a860ec17aaa5fa39f367d0c744e69d971a1fb2"
+checksum = "1585d831b5c904e42c4df7a4fcfa03e4b56a8cfa445aff0a04f4effe397ecac9"
 dependencies = [
  "approx",
  "num-complex",
