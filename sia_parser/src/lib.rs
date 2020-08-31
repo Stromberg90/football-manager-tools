@@ -2,7 +2,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use nalgebra::{Vector2, Vector3};
 use std::fs::File;
 use std::io::Seek;
-use std::io::{Read, SeekFrom, Write};
+use std::io::{self, Read, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::str;
 
@@ -167,6 +167,16 @@ impl Skip for File {
     }
 }
 
+trait Position {
+    fn position(&mut self) -> io::Result<u64>;
+}
+
+impl Position for File {
+    fn position(&mut self) -> Result<u64, std::io::Error> {
+        self.seek(SeekFrom::Current(0))
+    }
+}
+
 pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
     let mut file = File::open(filepath).unwrap();
 
@@ -195,24 +205,21 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
 
     model.objects_num = file.read_u32::<LittleEndian>().unwrap();
 
-    // So far has been 0's, when I changed it the mesh became invisible
-    file.skip(4);
+    for _ in 0..model.objects_num {
+        println!("\n");
+        dbg!(&file.read_u32::<LittleEndian>().unwrap());
 
-    model.num_vertices = file.read_u32::<LittleEndian>().unwrap();
-    // Zero's, changing it made it invisible
-    file.skip(4);
+        // Vertices
+        dbg!(&file.read_u32::<LittleEndian>().unwrap());
+        dbg!(&file.read_u32::<LittleEndian>().unwrap());
 
-    // This diveded by 3 gives the amount of faces, like another set of bytes later on
-    // I'm wondering if this is the total amount of faces, and the other one is per mesh
-    model.something_about_faces_or_vertices = file.read_u32::<LittleEndian>().unwrap();
+        // Number of triangles when divided by 3
+        dbg!(&file.read_u32::<LittleEndian>().unwrap());
 
-    // This needs to be moved into the mesh, then maybe when reading faces/vertices/materials one can match against it.
-    model.object_id = file.read_u32::<LittleEndian>().unwrap();
-
-    // Changing these did nothing
-    file.skip(8);
-
-    file.skip(((model.objects_num - 1) * 28).into());
+        // ID
+        dbg!(&file.read_u32::<LittleEndian>().unwrap());
+        file.skip(8);
+    }
 
     model.num_meshes = file.read_u32::<LittleEndian>().unwrap();
 
@@ -275,6 +282,10 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
     let number_of_triangles = file.read_u32::<LittleEndian>().unwrap() / 3;
 
     for _ in 0..number_of_triangles {
+        // for _ in 0..model.something_about_faces_or_vertices / 3 {
+        // for _ in 0..1254 {
+        // 268
+        // for _ in 0..140 {
         model.triangles.push(read_triangle(&mut file));
     }
     file.skip(13);
