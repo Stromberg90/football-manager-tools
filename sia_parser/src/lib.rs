@@ -66,15 +66,25 @@ impl BoundingBox {
 
 #[derive(Debug)]
 pub struct Mesh {
+    pub num_vertices: u32,
+    pub num_triangles: u32,
+    pub id: u32,
     pub materials_num: u8,
     pub materials: Vec<Material>,
+    pub vertices: Vec<Vertex>,
+    pub triangles: Vec<Triangle>,
 }
 
 impl Mesh {
     fn new() -> Self {
         Mesh {
+            num_vertices: 0,
+            num_triangles: 0,
+            id: 0,
             materials_num: 0,
             materials: Vec::new(),
+            vertices: Vec::new(),
+            triangles: Vec::new(),
         }
     }
 }
@@ -91,8 +101,6 @@ pub struct Model {
     pub num_vertices: u32,
     pub num_meshes: u32,
     pub meshes: Vec<Mesh>,
-    pub vertices: Vec<Vertex>,
-    pub triangles: Vec<Triangle>,
 }
 
 impl Model {
@@ -108,8 +116,6 @@ impl Model {
             num_vertices: 0,
             num_meshes: 0,
             meshes: Vec::new(),
-            vertices: Vec::new(),
-            triangles: Vec::new(),
         }
     }
 }
@@ -206,19 +212,21 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
     model.objects_num = file.read_u32::<LittleEndian>().unwrap();
 
     for _ in 0..model.objects_num {
-        println!("\n");
-        dbg!(&file.read_u32::<LittleEndian>().unwrap());
+        let mut mesh = Mesh::new();
+        file.read_u32::<LittleEndian>().unwrap();
 
         // Vertices
-        dbg!(&file.read_u32::<LittleEndian>().unwrap());
-        dbg!(&file.read_u32::<LittleEndian>().unwrap());
+        mesh.num_vertices = file.read_u32::<LittleEndian>().unwrap();
+
+        file.read_u32::<LittleEndian>().unwrap();
 
         // Number of triangles when divided by 3
-        dbg!(&file.read_u32::<LittleEndian>().unwrap());
+        mesh.num_triangles = file.read_u32::<LittleEndian>().unwrap() / 3;
 
         // ID
-        dbg!(&file.read_u32::<LittleEndian>().unwrap());
+        mesh.id = file.read_u32::<LittleEndian>().unwrap();
         file.skip(8);
+        model.meshes.push(mesh);
     }
 
     model.num_meshes = file.read_u32::<LittleEndian>().unwrap();
@@ -227,7 +235,7 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
     file.skip(16);
 
     for i in 0..model.num_meshes {
-        let mut mesh = Mesh::new();
+        let mut mesh = model.meshes.get_mut(i as usize).unwrap();
         let material_kind = read_string(&mut file);
         mesh.materials_num = file.read_u8().unwrap();
         for _ in 0..mesh.materials_num {
@@ -245,7 +253,6 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
             }
             mesh.materials.push(material);
         }
-        model.meshes.push(mesh);
         if i != model.num_meshes - 1 {
             file.skip(80);
         }
@@ -257,36 +264,38 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
 
     let _maybe_a_identifer_num = file.read_u32::<LittleEndian>();
 
-    for _ in 0..local_num_vertecies.unwrap() {
-        // for _ in 0..model.num_vertices {
-        let pos = read_vector3(&mut file);
+    for i in 0..model.num_meshes {
+        let mesh = model.meshes.get_mut(i as usize).unwrap();
 
-        // Think these are normals, when plotted out as vertices, they make a sphere.
-        // Which makes sense if it's normals
-        // Actually, I'm second guessing myself
-        let normal = read_vector3(&mut file);
+        for _ in 0..mesh.num_vertices {
+            let pos = read_vector3(&mut file);
 
-        let uv = read_vector2(&mut file);
+            // Think these are normals, when plotted out as vertices, they make a sphere.
+            // Which makes sense if it's normals
+            // Actually, I'm second guessing myself
+            let normal = read_vector3(&mut file);
 
-        // println!("Unknowns");
-        // Thinking these are tangents or binormals, last one is always 1 or -1
-        file.skip(16);
+            let uv = read_vector2(&mut file);
 
-        model.vertices.push(Vertex {
-            position: pos,
-            uv,
-            normals: normal,
-        })
+            // println!("Unknowns");
+            // Thinking these are tangents or binormals, last one is always 1 or -1
+            file.skip(16);
+
+            mesh.vertices.push(Vertex {
+                position: pos,
+                uv,
+                normals: normal,
+            })
+        }
     }
 
     let number_of_triangles = file.read_u32::<LittleEndian>().unwrap() / 3;
 
-    for _ in 0..number_of_triangles {
-        // for _ in 0..model.something_about_faces_or_vertices / 3 {
-        // for _ in 0..1254 {
-        // 268
-        // for _ in 0..140 {
-        model.triangles.push(read_triangle(&mut file));
+    for i in 0..model.num_meshes {
+        let mesh = model.meshes.get_mut(i as usize).unwrap();
+        for _ in 0..mesh.num_triangles {
+            mesh.triangles.push(read_triangle(&mut file));
+        }
     }
     file.skip(13);
 
