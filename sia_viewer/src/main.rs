@@ -1,10 +1,14 @@
+#![feature(get_mut_unchecked)]
+
 use kiss3d::light::Light;
-use kiss3d::resource::Mesh;
+use kiss3d::resource::{Mesh, TextureManager, TextureWrapping};
 use kiss3d::scene::SceneNode;
 use kiss3d::{camera::ArcBall, event::WindowEvent, window::Window};
 use nalgebra::{Point2, Point3, Vector3};
+use native_dialog::*;
 use nfd2::Response;
-use std::{cell::RefCell, rc::Rc};
+use std::io::Read;
+use std::{cell::RefCell, path::Path, rc::Rc};
 
 struct Options {
     wireframe: bool,
@@ -25,8 +29,20 @@ fn main() {
     let mut camera = ArcBall::new(Point3::new(0.0f32, 10.0, -10.0), Point3::origin());
     camera.rebind_drag_button(Some(kiss3d::event::MouseButton::Button3));
 
+    let mut texture_manager = TextureManager::new();
+
     match nfd2::open_file_dialog(None, None).expect("Couldn't open file") {
         Response::Okay(filepath) => {
+            let dialog = MessageAlert {
+                title: "Texture Folder",
+                text: "Please select simatchviewer-pc folder for texture support",
+                typ: MessageType::Info,
+            };
+            dialog.show().unwrap();
+            let mut texture_dir = None;
+            if let Ok(Response::Okay(folder)) = nfd2::open_pick_folder(None) {
+                texture_dir = Some(folder);
+            }
             if filepath.extension().unwrap() == "sia" {
                 let model = sia_parser::parse(filepath);
 
@@ -45,6 +61,7 @@ fn main() {
                     for triangle in mesh.triangles {
                         triangles.push(Point3::new(triangle.0, triangle.1, triangle.2));
                     }
+
                     let mut c = window.add_mesh(
                         Rc::new(RefCell::new(Mesh::new(
                             coords,
@@ -61,6 +78,24 @@ fn main() {
                         &Vector3::new(1.0, 0.0, 0.0),
                     );
                     c.enable_backface_culling(true);
+
+                    if let Some(texture_dir) = &texture_dir {
+                        let diffuse_relative_path = &mesh.materials[0].textures[0].name;
+                        let mut diffuse_absolute_path = texture_dir.join(diffuse_relative_path);
+                        diffuse_absolute_path.set_extension("dds");
+
+                        if let Ok(texture) = image::open(diffuse_absolute_path) {
+                            let mut texture_resource =
+                                texture_manager.add_image(texture, diffuse_relative_path);
+
+                            unsafe {
+                                let text = Rc::get_mut_unchecked(&mut texture_resource);
+                                text.set_wrapping_s(TextureWrapping::Repeat);
+                                text.set_wrapping_t(TextureWrapping::Repeat);
+                            }
+                            c.set_texture(texture_resource);
+                        }
+                    }
 
                     scene_nodes.push(c);
                 }

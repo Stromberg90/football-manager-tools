@@ -18,8 +18,8 @@ pub struct Triangle(pub u16, pub u16, pub u16);
 
 #[derive(Debug)]
 pub struct Texture {
-    name: String,
-    id: u8,
+    pub name: String,
+    pub id: u8,
 }
 
 #[derive(Debug)]
