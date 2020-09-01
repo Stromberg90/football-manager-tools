@@ -14,8 +14,10 @@ Mesh             |  Wireframe
 :-------------------------:|:-------------------------:
 <img src="images/viewer_01.png" width="500" >|  <img src="images/viewer_02.png" width="500">
 
-Ball replaced with burger mesh exported from blender.
-<img src="images/burger_ball.png" />
+Textured
+<img src="images/viewer_03.png" width="500" >
+
+<img src="images/burger_ball.png" /> Ball replaced with burger mesh exported from blender.
 
 #### Notes
 - Only tested on Football Manager 2020
@@ -29,9 +31,10 @@ Ball replaced with burger mesh exported from blender.
 4. Using the Resource Archiver extract whichever archives you want to look at, the meshes are in simatchviewer and textures in simatchviewer-pc
 5. Working with the tools
 	- Standalone Viewer
-		1. Install the rust toolchain [rustup.rs](https://rustup.rs/) 
-		2. run `cargo run` inside the sia_viewer folder
-		3. Program brings up a file dialog on startup, select a .sia file
+		1. Install the rust toolchain [rustup.rs](https://rustup.rs/)
+		2. Switch to the nightly toolchain using rustup
+		3. run `cargo run` inside the sia_viewer folder
+		4. Program brings up a file dialog on startup, select a .sia file
 	- Blender
 		1. Open Blender
 		2. Go to Edit->Preferences->Addons then the install button on the upper right corner and select the io_scene_sia folder
