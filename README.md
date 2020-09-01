@@ -15,9 +15,12 @@ Mesh             |  Wireframe
 <img src="images/viewer_01.png" width="500" >|  <img src="images/viewer_02.png" width="500">
 
 Textured
+
 <img src="images/viewer_03.png" width="500" >
 
-<img src="images/burger_ball.png" /> Ball replaced with burger mesh exported from blender.
+Ball replaced with burger mesh exported from blender.
+
+<img src="images/burger_ball.png" />
 
 #### Notes
 - Only tested on Football Manager 2020
