@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::Seek;
 use std::io::{self, Read, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use std::str;
+use std::{cmp::max, str};
 
 #[derive(Debug)]
 pub struct Vertex {
@@ -15,6 +15,12 @@ pub struct Vertex {
 
 #[derive(Debug)]
 pub struct Triangle(pub u16, pub u16, pub u16);
+
+impl Triangle {
+    fn max(&self) -> u16 {
+        max(max(self.0, self.1), self.2)
+    }
+}
 
 #[derive(Debug)]
 pub struct Texture {
@@ -261,8 +267,11 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
 
     // Maybe this is for this mesh, and the earlier one is for the entire file.
     let local_num_vertecies = file.read_u32::<LittleEndian>();
+    dbg!(&local_num_vertecies);
 
-    let _maybe_a_identifer_num = file.read_u32::<LittleEndian>();
+    // There seems to be a correlation between this number and the ammount of bytes per vertex.
+    let vertex_type = file.read_u32::<LittleEndian>().unwrap();
+    dbg!(&vertex_type);
 
     for i in 0..model.num_meshes {
         let mesh = model.meshes.get_mut(i as usize).unwrap();
@@ -279,7 +288,11 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
 
             // println!("Unknowns");
             // Thinking these are tangents or binormals, last one is always 1 or -1
-            file.skip(16);
+            if vertex_type == 39 {
+                file.skip(16);
+            } else if vertex_type == 47 {
+                file.skip(24);
+            }
 
             mesh.vertices.push(Vertex {
                 position: pos,
@@ -294,17 +307,35 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
     for i in 0..model.num_meshes {
         let mesh = model.meshes.get_mut(i as usize).unwrap();
         for _ in 0..mesh.num_triangles {
-            mesh.triangles.push(read_triangle(&mut file));
+            let triangle = read_triangle(&mut file);
+            if triangle.max() as usize > mesh.vertices.len() {
+                panic!("Face index larger than available vertices\nFace Index: {}\nVertices Length: {}\n at file byte position: {}\n", triangle.max(), mesh.vertices.len(), file.position().unwrap());
+            }
+            mesh.triangles.push(triangle);
         }
     }
     file.skip(13);
 
     let mut end_file_tag = [0u8; 4];
     file.read_exact(&mut end_file_tag).unwrap();
-    return model;
-    let end_file_tag = str::from_utf8(&end_file_tag).unwrap();
-    if end_file_tag != "EHSM" {
-        panic!("Expexted EHSM, but found {}", end_file_tag);
+
+    match str::from_utf8(&end_file_tag) {
+        Ok(s) => {
+            if s != "EHSM" {
+                panic!(
+                    "Expexted EHSM, but found {} at file byte position: {}",
+                    s,
+                    file.position().unwrap()
+                );
+            }
+        }
+        Err(_) => {
+            panic!(
+                "Expexted EHSM, but found {:#?} at file byte position: {}",
+                end_file_tag,
+                file.position().unwrap()
+            );
+        }
     }
 
     model
