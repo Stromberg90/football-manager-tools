@@ -11,3 +11,4 @@ kiss3d = { git = "https://github.com/Stromberg90/kiss3d" }
 nalgebra = "0.22.0"
 nfd2 = "0.2.1"
 sia_parser = {path = "../sia_parser"}
+obj-exporter = "0.2.0"

@@ -2,13 +2,14 @@
 
 use kiss3d::light::Light;
 use kiss3d::resource::{Mesh, TextureManager, TextureWrapping};
-use kiss3d::scene::SceneNode;
 use kiss3d::{camera::ArcBall, event::WindowEvent, window::Window};
 use nalgebra::{Point2, Point3, Vector3};
 use native_dialog::*;
 use nfd2::Response;
-use std::io::Read;
-use std::{cell::RefCell, path::Path, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
+
+use obj_exporter;
+use obj_exporter::{Geometry, ObjSet, Object, Primitive, Shape, TVertex, Vertex};
 
 struct Options {
     wireframe: bool,
@@ -31,6 +32,8 @@ fn main() {
 
     let mut texture_manager = TextureManager::new();
 
+    let mut model = None;
+
     match nfd2::open_file_dialog(None, None).expect("Couldn't open file") {
         Response::Okay(filepath) => {
             let dialog = MessageAlert {
@@ -44,21 +47,22 @@ fn main() {
                 texture_dir = Some(folder);
             }
             if filepath.extension().unwrap() == "sia" {
-                let model = sia_parser::parse(filepath);
+                model = Some(sia_parser::parse(filepath));
+                let model = model.as_ref().unwrap();
 
-                for mesh in model.meshes {
+                for mesh in &model.meshes {
                     let mut coords = Vec::new();
                     let mut normals = Vec::new();
                     let mut triangles = Vec::new();
                     let mut uvs = Vec::new();
 
-                    for vertex in mesh.vertices {
+                    for vertex in &mesh.vertices {
                         coords.push(Point3::from(vertex.position));
                         normals.push(Vector3::from(vertex.normals));
                         uvs.push(Point2::from(vertex.uv));
                     }
 
-                    for triangle in mesh.triangles {
+                    for triangle in &mesh.triangles {
                         triangles.push(Point3::new(triangle.0, triangle.1, triangle.2));
                     }
 
@@ -107,6 +111,71 @@ fn main() {
     while window.render_with_camera(&mut camera) {
         for mut event in window.events().iter() {
             match event.value {
+                WindowEvent::Key(kiss3d::event::Key::S, kiss3d::event::Action::Press, modifers) => {
+                    if modifers.contains(kiss3d::event::Modifiers::Control) {
+                        let mut objects = Vec::new();
+                        for mesh in &model.as_ref().unwrap().meshes {
+                            for material in &mesh.materials {
+                                for texture in &material.textures {
+                                    dbg!(&texture);
+                                }
+                            }
+                        }
+                        for mesh in &model.as_ref().unwrap().meshes {
+                            let object = Object {
+                                name: model.as_ref().unwrap().name.to_owned(),
+                                vertices: mesh
+                                    .vertices
+                                    .iter()
+                                    .map(|v| v.position)
+                                    .map(|v| Vertex {
+                                        x: v.x.into(),
+                                        y: v.y.into(),
+                                        z: v.z.into(),
+                                    })
+                                    .collect(),
+                                tex_vertices: mesh
+                                    .vertices
+                                    .iter()
+                                    .map(|v| v.uv)
+                                    .map(|uv| TVertex {
+                                        u: uv.x.into(),
+                                        v: (uv.y - 1f32).abs().into(),
+                                        w: 0.0,
+                                    })
+                                    .collect(),
+                                normals: vec![],
+                                geometry: vec![Geometry {
+                                    material_name: Some(model.as_ref().unwrap().name.to_owned()),
+                                    shapes: mesh
+                                        .triangles
+                                        .iter()
+                                        .map(|t| Shape {
+                                            primitive: Primitive::Triangle(
+                                                (t.0.into(), Some(t.0.into()), None),
+                                                (t.1.into(), Some(t.1.into()), None),
+                                                (t.2.into(), Some(t.2.into()), None),
+                                            ),
+                                            groups: vec![],
+                                            smoothing_groups: vec![0],
+                                        })
+                                        .collect(),
+                                }],
+                            };
+                            objects.push(object);
+                        }
+                        let set = ObjSet {
+                            material_library: None,
+                            objects,
+                        };
+
+                        obj_exporter::export_to_file(
+                            &set,
+                            format!("{}{}", model.as_ref().unwrap().name, ".obj"),
+                        )
+                        .unwrap();
+                    }
+                }
                 WindowEvent::Key(kiss3d::event::Key::W, kiss3d::event::Action::Press, modifers) => {
                     if modifers.contains(kiss3d::event::Modifiers::Shift) {
                         if options.wireframe {

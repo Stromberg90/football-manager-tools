@@ -22,6 +22,10 @@ Ball replaced with burger mesh exported from blender.
 
 <img src="images/burger_ball.png" />
 
+Boardroom mesh from football manager rendered in blender.
+
+<img src="images/boardroom.png" />
+
 #### Notes
 - Only tested on Football Manager 2020
 - No texture importing support yet, uv's are supported though
@@ -38,11 +42,13 @@ Ball replaced with burger mesh exported from blender.
 		2. Switch to the nightly toolchain using rustup
 		3. run `cargo run` inside the sia_viewer folder
 		4. Program brings up a file dialog on startup, select a .sia file
+		5. Hotkeys
+			- Ctrl-W to toggle wireframe
+			- Ctrl-S saves a obj with the mesh name in the folder next to the excecutable
 	- Blender
 		1. Open Blender
 		2. Go to Edit->Preferences->Addons then the install button on the upper right corner and select the io_scene_sia folder
 		3. Enabled addon and there should now be a `Football Manager 2020 Mesh (.sia)` entry under the import and export menu
-
 
 #### Contributing
 Help is appreciated in anyway, however here is some parts I've had on my mind.

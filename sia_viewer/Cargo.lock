@@ -825,6 +825,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "obj-exporter"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d133460dfa7bb530c954eb6c98c4c4ac983cc2ec70840f3a9cf9bf6cf3bee824"
+dependencies = [
+ "lazy_static",
+ "wavefront_obj",
+]
+
+[[package]]
 name = "objc"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1356,6 +1366,7 @@ dependencies = [
  "nalgebra",
  "native-dialog",
  "nfd2",
+ "obj-exporter",
  "sia_parser",
 ]
 
@@ -1617,6 +1628,12 @@ name = "wasm-bindgen-shared"
 version = "0.2.67"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93b162580e34310e5931c4b792560108b10fd14d64915d7fff8ff00180e70092"
+
+[[package]]
+name = "wavefront_obj"
+version = "5.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33c9cbb65c5aac6493000cdabe11f49588d19b547ccd7501f44fc96a6b9406ff"
 
 [[package]]
 name = "wayland-client"
