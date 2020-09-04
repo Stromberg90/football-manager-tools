@@ -43,7 +43,7 @@ Boardroom mesh from football manager rendered in blender.
 		3. run `cargo run` inside the sia_viewer folder
 		4. Program brings up a file dialog on startup, select a .sia file
 		5. Hotkeys
-			- Ctrl-W to toggle wireframe
+			- Shift-W to toggle wireframe
 			- Ctrl-S saves a obj with the mesh name in the folder next to the excecutable
 	- Blender
 		1. Open Blender
