@@ -2,129 +2,25 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use nalgebra::{Vector2, Vector3};
 use std::fs::File;
 use std::io::Seek;
-use std::io::{self, Read, SeekFrom, Write};
-use std::path::{Path, PathBuf};
-use std::{cmp::max, str};
+use std::io::{self, Read, SeekFrom};
+use std::path::Path;
+use std::str;
 
-#[derive(Debug)]
-pub struct Vertex {
-    pub position: Vector3<f32>,
-    pub uv: Vector2<f32>,
-    pub normals: Vector3<f32>,
-}
+mod bounding_box;
+mod material;
+mod mesh;
+mod model;
+mod texture;
+mod triangle;
+mod vertex;
 
-#[derive(Debug)]
-pub struct Triangle(pub u16, pub u16, pub u16);
-
-impl Triangle {
-    fn max(&self) -> u16 {
-        max(max(self.0, self.1), self.2)
-    }
-}
-
-#[derive(Debug)]
-pub struct Texture {
-    pub name: String,
-    pub id: u8,
-}
-
-#[derive(Debug)]
-pub struct Material {
-    pub name: String,
-    pub kind: String,
-    pub textures_num: u8,
-    pub textures: Vec<Texture>,
-}
-
-impl Material {
-    fn new() -> Self {
-        Material {
-            name: String::new(),
-            kind: String::new(),
-            textures_num: 0,
-            textures: Vec::new(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct BoundingBox {
-    pub max_x: f32,
-    pub max_y: f32,
-    pub max_z: f32,
-    pub min_x: f32,
-    pub min_y: f32,
-    pub min_z: f32,
-}
-
-impl BoundingBox {
-    fn new() -> Self {
-        BoundingBox {
-            max_x: 0f32,
-            max_y: 0f32,
-            max_z: 0f32,
-            min_x: 0f32,
-            min_y: 0f32,
-            min_z: 0f32,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct Mesh {
-    pub num_vertices: u32,
-    pub num_triangles: u32,
-    pub id: u32,
-    pub materials_num: u8,
-    pub materials: Vec<Material>,
-    pub vertices: Vec<Vertex>,
-    pub triangles: Vec<Triangle>,
-}
-
-impl Mesh {
-    fn new() -> Self {
-        Mesh {
-            num_vertices: 0,
-            num_triangles: 0,
-            id: 0,
-            materials_num: 0,
-            materials: Vec::new(),
-            vertices: Vec::new(),
-            triangles: Vec::new(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct Model {
-    pub who_knows: f32,
-    pub objects_num: u32,
-    pub object_id: u32,
-    pub something_about_faces_or_vertices: u32,
-    pub maybe_version: u32,
-    pub name: String,
-    pub bounding_box: BoundingBox,
-    pub num_vertices: u32,
-    pub num_meshes: u32,
-    pub meshes: Vec<Mesh>,
-}
-
-impl Model {
-    fn new() -> Self {
-        Model {
-            who_knows: 0f32,
-            objects_num: 0,
-            object_id: 0,
-            something_about_faces_or_vertices: 0,
-            maybe_version: 0,
-            name: String::new(),
-            bounding_box: BoundingBox::new(),
-            num_vertices: 0,
-            num_meshes: 0,
-            meshes: Vec::new(),
-        }
-    }
-}
+use bounding_box::BoundingBox;
+use material::Material;
+use mesh::Mesh;
+use model::Model;
+use texture::Texture;
+use triangle::Triangle;
+use vertex::Vertex;
 
 fn read_string(file: &mut File) -> String {
     let string_length = file.read_u32::<LittleEndian>().unwrap();
@@ -314,8 +210,14 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
             mesh.triangles.push(triangle);
         }
     }
-    file.skip(13);
-
+    dbg!(&file.position());
+    file.skip(8);
+    let num = file.read_u8().unwrap();
+    if num != 0 {
+        dbg!(num);
+        return model;
+    }
+    file.skip(4);
     let mut end_file_tag = [0u8; 4];
     file.read_exact(&mut end_file_tag).unwrap();
 
@@ -323,7 +225,7 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
         Ok(s) => {
             if s != "EHSM" {
                 panic!(
-                    "Expexted EHSM, but found {} at file byte position: {}",
+                    "Expected EHSM, but found {} at file byte position: {}",
                     s,
                     file.position().unwrap()
                 );
@@ -331,7 +233,7 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
         }
         Err(_) => {
             panic!(
-                "Expexted EHSM, but found {:#?} at file byte position: {}",
+                "Expected EHSM, but found {:#?} at file byte position: {}",
                 end_file_tag,
                 file.position().unwrap()
             );
