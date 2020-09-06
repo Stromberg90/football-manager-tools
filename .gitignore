@@ -7,3 +7,4 @@ __pycache__
 .mypy_cache
 .vscode
 sia_parser/src/main.rs
+sia_viewer/objs/*

@@ -11,7 +11,7 @@ mod material;
 mod mesh;
 mod model;
 mod stream_ext;
-mod texture;
+pub mod texture;
 mod triangle;
 mod vertex;
 

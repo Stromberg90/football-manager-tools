@@ -6,9 +6,15 @@ use kiss3d::{camera::ArcBall, event::WindowEvent, window::Window};
 use nalgebra::{Point2, Point3, Vector3};
 use native_dialog::*;
 use nfd2::Response;
-use std::{cell::RefCell, path::PathBuf, rc::Rc};
+use std::{
+    cell::RefCell,
+    env, fs,
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 
 use obj_exporter::{Geometry, ObjSet, Object, Primitive, Shape, TVertex, Vertex};
+use sia_parser::texture::TextureType;
 
 struct Options {
     wireframe: bool,
@@ -18,6 +24,24 @@ impl Options {
     fn new() -> Self {
         Options { wireframe: false }
     }
+}
+
+fn show_error_dialog(title: &str, text: &str) {
+    let _ = MessageAlert {
+        title,
+        text,
+        typ: MessageType::Error,
+    }
+    .show();
+}
+
+fn show_info_dialog(title: &str, text: &str) {
+    let _ = MessageAlert {
+        title,
+        text,
+        typ: MessageType::Info,
+    }
+    .show();
 }
 
 fn main() {
@@ -30,6 +54,7 @@ fn main() {
     camera.rebind_drag_button(Some(kiss3d::event::MouseButton::Button3));
 
     let mut texture_manager = TextureManager::new();
+    let mut texture_dir: Option<PathBuf> = None;
 
     let mut model = None;
 
@@ -39,13 +64,10 @@ fn main() {
                 model = Some(sia_parser::parse(filepath));
                 match model.as_ref().unwrap() {
                     Ok(model) => {
-                        let dialog = MessageAlert {
-                            title: "Texture Folder",
-                            text: "Please select simatchviewer-pc folder for texture support",
-                            typ: MessageType::Info,
-                        };
-                        dialog.show().unwrap();
-                        let mut texture_dir: Option<PathBuf> = None;
+                        show_info_dialog(
+                            "Texture Folder",
+                            "Please select simatchviewer-pc folder for texture support",
+                        );
                         if let Ok(Response::Okay(folder)) = nfd2::open_pick_folder(None) {
                             texture_dir = Some(folder);
                         }
@@ -123,13 +145,6 @@ fn main() {
                         let mut objects = Vec::new();
                         if let Ok(model) = model.as_ref().unwrap() {
                             for mesh in &model.meshes {
-                                for material in &mesh.materials {
-                                    for texture in &material.textures {
-                                        dbg!(&texture);
-                                    }
-                                }
-                            }
-                            for mesh in &model.meshes {
                                 let object = Object {
                                     name: model.name.to_owned(),
                                     vertices: mesh
@@ -177,8 +192,164 @@ fn main() {
                                 objects,
                             };
 
-                            obj_exporter::export_to_file(&set, format!("{}{}", model.name, ".obj"))
-                                .unwrap();
+                            let obj_folder_path = env::current_dir()
+                                .unwrap()
+                                .join(format!("objs/{}", model.name));
+                            match fs::create_dir_all(&obj_folder_path) {
+                                Ok(_) => {
+                                    match obj_exporter::export_to_file(
+                                        &set,
+                                        obj_folder_path.join(format!("{}{}", model.name, ".obj")),
+                                    ) {
+                                        Ok(_) => {
+                                            if let Some(texture_dir) = &texture_dir {
+                                                let textures = model
+                                                    .meshes
+                                                    .iter()
+                                                    .flat_map(|m| &m.materials)
+                                                    .into_iter()
+                                                    .flat_map(|m| &m.textures)
+                                                    .collect::<Vec<_>>();
+                                                for texture in textures {
+                                                    let mut source_path =
+                                                        texture_dir.join(&texture.name);
+                                                    source_path.set_extension("dds");
+
+                                                    match texture.id {
+                                                        TextureType::RoughnessMetallicAmbientOcclusion => {
+                                                            {
+                                                                let mut roughness = PathBuf::from(format!("{}{}", texture.name.split('_').collect::<Vec<_>>().first().cloned().unwrap(), "_roughness"));
+                                                                roughness.set_extension("tga");
+
+                                                                let source_img =
+                                                                image::open(&source_path).unwrap();
+                                                                let mut source_img =
+                                                                    source_img.to_rgba();
+                                                                for pixel in source_img.pixels_mut() {
+                                                                    let image::Rgba(data) = *pixel;
+                                                                    *pixel = image::Rgba([
+                                                                        data[0], data[0], data[0], 255,
+                                                                    ]);
+                                                                }
+                                                                source_img
+                                                                    .save(
+                                                                        obj_folder_path.join(
+                                                                            roughness
+                                                                                .file_name()
+                                                                                .unwrap(),
+                                                                        ),
+                                                                    )
+                                                                    .unwrap();
+                                                            }
+                                                            {
+                                                                let mut metallic = PathBuf::from(format!("{}{}", texture.name.split('_').collect::<Vec<_>>().first().cloned().unwrap(), "_metallic"));
+                                                                metallic.set_extension("tga");
+
+                                                                let source_img =
+                                                                image::open(&source_path).unwrap();
+                                                                let mut source_img =
+                                                                    source_img.to_rgba();
+                                                                for pixel in source_img.pixels_mut() {
+                                                                    let image::Rgba(data) = *pixel;
+                                                                    *pixel = image::Rgba([
+                                                                        data[1], data[1], data[1], 255,
+                                                                    ]);
+                                                                }
+                                                                source_img
+                                                                    .save(
+                                                                        obj_folder_path.join(
+                                                                            metallic
+                                                                                .file_name()
+                                                                                .unwrap(),
+                                                                        ),
+                                                                    )
+                                                                    .unwrap();
+                                                            }
+                                                            {
+                                                                let mut ambient_occlusion = PathBuf::from(format!("{}{}", texture.name.split('_').collect::<Vec<_>>().first().cloned().unwrap(), "_ambient_occlusion"));
+                                                                ambient_occlusion.set_extension("tga");
+
+                                                                let source_img =
+                                                                image::open(&source_path).unwrap();
+                                                                let mut source_img =
+                                                                    source_img.to_rgba();
+                                                                for pixel in source_img.pixels_mut() {
+                                                                    let image::Rgba(data) = *pixel;
+                                                                    *pixel = image::Rgba([
+                                                                        data[3], data[3], data[3], 255,
+                                                                    ]);
+                                                                }
+                                                                source_img
+                                                                    .save(
+                                                                        obj_folder_path.join(
+                                                                            ambient_occlusion
+                                                                                .file_name()
+                                                                                .unwrap(),
+                                                                        ),
+                                                                    )
+                                                                    .unwrap();
+                                                            }
+                                                        },
+                                                        TextureType::Normal => {
+                                                            let mut normal = PathBuf::from(format!("{}{}", texture.name.split('_').collect::<Vec<_>>().first().cloned().unwrap(), "_normal"));
+                                                            normal.set_extension("tga");
+
+                                                            let source_img =
+                                                            image::open(&source_path).unwrap();
+                                                            let mut source_img =
+                                                                source_img.to_rgba();
+                                                            for pixel in source_img.pixels_mut() {
+                                                                let image::Rgba(data) = *pixel;
+                                                                *pixel = image::Rgba([
+                                                                    data[3], data[1], 255, 255,
+                                                                ]);
+                                                            }
+                                                            source_img
+                                                                .save(
+                                                                    obj_folder_path.join(
+                                                                        normal
+                                                                            .file_name()
+                                                                            .unwrap(),
+                                                                    ),
+                                                                )
+                                                                .unwrap();
+                                                        },
+                                                        _ => {
+                                                            let mut target_path =
+                                                                PathBuf::from(&texture.name);
+                                                            target_path.set_extension("tga");
+
+                                                            let source_img =
+                                                                image::open(source_path).unwrap();
+                                                            source_img
+                                                                .save(
+                                                                    obj_folder_path.join(
+                                                                        target_path
+                                                                            .file_name()
+                                                                            .unwrap(),
+                                                                    ),
+                                                                )
+                                                                .unwrap();
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            show_error_dialog(
+                                                "Obj",
+                                                &format!("Failed to save obj\n{}", e),
+                                            );
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    show_error_dialog(
+                                        "Obj Folder",
+                                        &format!("Failed to create obj folder\n{}", e),
+                                    );
+                                }
+                            }
                         }
                     }
                 }
