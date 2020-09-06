@@ -23,19 +23,37 @@ use texture::Texture;
 
 use vertex::Vertex;
 
-pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
-    let mut file = File::open(filepath).unwrap();
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum SiaParseError {
+    #[error("Expexted header SHSM, but found {0}")]
+    Header(String),
+    #[error("Face index larger than available vertices\nFace Index: {0}\nVertices Length: {1}\n at file byte position: {2}")]
+    FaceVertexLenghtMismatch(u16, usize, u64),
+    #[error("Expected EHSM, but found {0:#?} at file byte position: {1}")]
+    EndTagB([u8; 4], u64),
+    #[error("Expected EHSM, but found {0} at file byte position: {1}")]
+    EndTagS(String, u64),
+    #[error("file error")]
+    File(#[from] std::io::Error),
+    #[error("utf-8 error")]
+    Utf8(#[from] std::str::Utf8Error),
+}
+
+pub fn parse<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
+    let mut file = File::open(filepath)?;
 
     let mut model = Model::new();
 
     let mut begin_file_tag = [0u8; 4];
-    file.read_exact(&mut begin_file_tag).unwrap();
-    let begin_file_tag = str::from_utf8(&begin_file_tag).unwrap();
+    file.read_exact(&mut begin_file_tag)?;
+    let begin_file_tag = str::from_utf8(&begin_file_tag)?;
     if begin_file_tag != "SHSM" {
-        panic!("Expexted header SHSM, but found {}", begin_file_tag);
+        return Err(SiaParseError::Header(begin_file_tag.into()));
     }
 
-    model.maybe_version = file.read_u32::<LittleEndian>().unwrap();
+    model.maybe_version = file.read_u32::<LittleEndian>()?;
 
     model.name = file.read_string();
 
@@ -45,31 +63,31 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
 
     // This might be some sort of scale, since it tends to resemble another bouding box value
     // changing it did nothing
-    model.who_knows = file.read_f32::<LittleEndian>().unwrap();
+    model.who_knows = file.read_f32::<LittleEndian>()?;
 
     model.bounding_box = file.read_bounding_box();
 
-    model.objects_num = file.read_u32::<LittleEndian>().unwrap();
+    model.objects_num = file.read_u32::<LittleEndian>()?;
 
     for _ in 0..model.objects_num {
         let mut mesh = Mesh::new();
-        file.read_u32::<LittleEndian>().unwrap();
+        file.read_u32::<LittleEndian>()?;
 
         // Vertices
-        mesh.num_vertices = file.read_u32::<LittleEndian>().unwrap();
+        mesh.num_vertices = file.read_u32::<LittleEndian>()?;
 
-        file.read_u32::<LittleEndian>().unwrap();
+        file.read_u32::<LittleEndian>()?;
 
         // Number of triangles when divided by 3
-        mesh.num_triangles = file.read_u32::<LittleEndian>().unwrap() / 3;
+        mesh.num_triangles = file.read_u32::<LittleEndian>()? / 3;
 
         // ID
-        mesh.id = file.read_u32::<LittleEndian>().unwrap();
+        mesh.id = file.read_u32::<LittleEndian>()?;
         file.skip(8);
         model.meshes.push(mesh);
     }
 
-    model.num_meshes = file.read_u32::<LittleEndian>().unwrap();
+    model.num_meshes = file.read_u32::<LittleEndian>()?;
 
     // Changing these did nothing
     file.skip(16);
@@ -77,14 +95,14 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
     for i in 0..model.num_meshes {
         let mut mesh = model.meshes.get_mut(i as usize).unwrap();
         let material_kind = file.read_string();
-        mesh.materials_num = file.read_u8().unwrap();
+        mesh.materials_num = file.read_u8()?;
         for _ in 0..mesh.materials_num {
             let mut material = Material::new();
             material.kind = material_kind.to_owned();
             material.name = file.read_string();
-            material.textures_num = file.read_u8().unwrap();
+            material.textures_num = file.read_u8()?;
             for _ in 0..material.textures_num {
-                let texture_id = file.read_u8().unwrap();
+                let texture_id = file.read_u8()?;
                 let texture = Texture::new(file.read_string(), texture_id);
                 material.textures.push(texture);
             }
@@ -101,7 +119,7 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
     dbg!(&local_num_vertecies);
 
     // There seems to be a correlation between this number and the ammount of bytes per vertex.
-    let vertex_type = file.read_u32::<LittleEndian>().unwrap();
+    let vertex_type = file.read_u32::<LittleEndian>()?;
     dbg!(&vertex_type);
 
     for i in 0..model.num_meshes {
@@ -133,47 +151,43 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
         }
     }
 
-    let number_of_triangles = file.read_u32::<LittleEndian>().unwrap() / 3;
+    let number_of_triangles = file.read_u32::<LittleEndian>()? / 3;
 
     for i in 0..model.num_meshes {
         let mesh = model.meshes.get_mut(i as usize).unwrap();
         for _ in 0..mesh.num_triangles {
             let triangle = file.read_triangle();
             if triangle.max() as usize > mesh.vertices.len() {
-                panic!("Face index larger than available vertices\nFace Index: {}\nVertices Length: {}\n at file byte position: {}\n", triangle.max(), mesh.vertices.len(), file.position().unwrap());
+                return Err(SiaParseError::FaceVertexLenghtMismatch(
+                    triangle.max(),
+                    mesh.vertices.len(),
+                    file.position()?,
+                ));
             }
             mesh.triangles.push(triangle);
         }
     }
     dbg!(&file.position());
     file.skip(8);
-    let num = file.read_u8().unwrap();
+    let num = file.read_u8()?;
     if num != 0 {
         dbg!(num);
-        return model;
+        return Ok(model);
     }
     file.skip(4);
     let mut end_file_tag = [0u8; 4];
-    file.read_exact(&mut end_file_tag).unwrap();
+    file.read_exact(&mut end_file_tag)?;
 
     match str::from_utf8(&end_file_tag) {
         Ok(s) => {
             if s != "EHSM" {
-                panic!(
-                    "Expected EHSM, but found {} at file byte position: {}",
-                    s,
-                    file.position().unwrap()
-                );
+                return Err(SiaParseError::EndTagS(s.into(), file.position()?));
             }
         }
         Err(_) => {
-            panic!(
-                "Expected EHSM, but found {:#?} at file byte position: {}",
-                end_file_tag,
-                file.position().unwrap()
-            );
+            return Err(SiaParseError::EndTagB(end_file_tag, file.position()?));
         }
     }
 
-    model
+    Ok(model)
 }

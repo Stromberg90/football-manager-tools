@@ -1355,6 +1355,7 @@ dependencies = [
  "byteorder",
  "jwalk",
  "nalgebra",
+ "thiserror",
 ]
 
 [[package]]
