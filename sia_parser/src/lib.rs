@@ -1,8 +1,8 @@
 use byteorder::{LittleEndian, ReadBytesExt};
-use nalgebra::{Vector2, Vector3};
+
 use std::fs::File;
-use std::io::Seek;
-use std::io::{self, Read, SeekFrom};
+
+use std::io::Read;
 use std::path::Path;
 use std::str;
 
@@ -10,80 +10,18 @@ mod bounding_box;
 mod material;
 mod mesh;
 mod model;
+mod stream_ext;
 mod texture;
 mod triangle;
 mod vertex;
 
-use bounding_box::BoundingBox;
 use material::Material;
 use mesh::Mesh;
 use model::Model;
+use stream_ext::StreamExt;
 use texture::Texture;
-use triangle::Triangle;
+
 use vertex::Vertex;
-
-fn read_string(file: &mut File) -> String {
-    let string_length = file.read_u32::<LittleEndian>().unwrap();
-    let mut string_buf = Vec::<u8>::with_capacity(string_length as usize);
-    for _ in 0..string_length {
-        string_buf.push(0);
-    }
-
-    file.read_exact(&mut string_buf).unwrap();
-    str::from_utf8(&string_buf).unwrap().to_owned()
-}
-
-fn read_bounding_box(file: &mut File) -> BoundingBox {
-    BoundingBox {
-        min_x: file.read_f32::<LittleEndian>().unwrap(),
-        min_y: file.read_f32::<LittleEndian>().unwrap(),
-        min_z: file.read_f32::<LittleEndian>().unwrap(),
-        max_x: file.read_f32::<LittleEndian>().unwrap(),
-        max_y: file.read_f32::<LittleEndian>().unwrap(),
-        max_z: file.read_f32::<LittleEndian>().unwrap(),
-    }
-}
-
-fn read_vector3(file: &mut File) -> Vector3<f32> {
-    let x = file.read_f32::<LittleEndian>().unwrap();
-    let y = file.read_f32::<LittleEndian>().unwrap();
-    let z = file.read_f32::<LittleEndian>().unwrap();
-    Vector3::new(x, y, z)
-}
-
-fn read_vector2(file: &mut File) -> Vector2<f32> {
-    let x = file.read_f32::<LittleEndian>().unwrap();
-    let y = file.read_f32::<LittleEndian>().unwrap();
-    Vector2::new(x, y)
-}
-
-fn read_triangle(file: &mut File) -> Triangle {
-    Triangle(
-        file.read_u16::<LittleEndian>().unwrap(),
-        file.read_u16::<LittleEndian>().unwrap(),
-        file.read_u16::<LittleEndian>().unwrap(),
-    )
-}
-
-trait Skip {
-    fn skip(&mut self, num_bytes: i64);
-}
-
-impl Skip for File {
-    fn skip(&mut self, num_bytes: i64) {
-        self.seek(SeekFrom::Current(num_bytes)).unwrap();
-    }
-}
-
-trait Position {
-    fn position(&mut self) -> io::Result<u64>;
-}
-
-impl Position for File {
-    fn position(&mut self) -> Result<u64, std::io::Error> {
-        self.seek(SeekFrom::Current(0))
-    }
-}
 
 pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
     let mut file = File::open(filepath).unwrap();
@@ -99,7 +37,7 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
 
     model.maybe_version = file.read_u32::<LittleEndian>().unwrap();
 
-    model.name = read_string(&mut file);
+    model.name = file.read_string();
 
     // So far these bytes have only been zero,
     // changing them did nothing
@@ -109,7 +47,7 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
     // changing it did nothing
     model.who_knows = file.read_f32::<LittleEndian>().unwrap();
 
-    model.bounding_box = read_bounding_box(&mut file);
+    model.bounding_box = file.read_bounding_box();
 
     model.objects_num = file.read_u32::<LittleEndian>().unwrap();
 
@@ -138,19 +76,16 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
 
     for i in 0..model.num_meshes {
         let mut mesh = model.meshes.get_mut(i as usize).unwrap();
-        let material_kind = read_string(&mut file);
+        let material_kind = file.read_string();
         mesh.materials_num = file.read_u8().unwrap();
         for _ in 0..mesh.materials_num {
             let mut material = Material::new();
             material.kind = material_kind.to_owned();
-            material.name = read_string(&mut file);
+            material.name = file.read_string();
             material.textures_num = file.read_u8().unwrap();
             for _ in 0..material.textures_num {
-                let texture_id = file.read_u8().unwrap(); //Maybe a way to identify which texture it is, like a id
-                let texture = Texture {
-                    name: read_string(&mut file),
-                    id: texture_id,
-                };
+                let texture_id = file.read_u8().unwrap();
+                let texture = Texture::new(file.read_string(), texture_id);
                 material.textures.push(texture);
             }
             mesh.materials.push(material);
@@ -173,14 +108,14 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
         let mesh = model.meshes.get_mut(i as usize).unwrap();
 
         for _ in 0..mesh.num_vertices {
-            let pos = read_vector3(&mut file);
+            let pos = file.read_vector3();
 
             // Think these are normals, when plotted out as vertices, they make a sphere.
             // Which makes sense if it's normals
             // Actually, I'm second guessing myself
-            let normal = read_vector3(&mut file);
+            let normal = file.read_vector3();
 
-            let uv = read_vector2(&mut file);
+            let uv = file.read_vector2();
 
             // println!("Unknowns");
             // Thinking these are tangents or binormals, last one is always 1 or -1
@@ -203,7 +138,7 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Model {
     for i in 0..model.num_meshes {
         let mesh = model.meshes.get_mut(i as usize).unwrap();
         for _ in 0..mesh.num_triangles {
-            let triangle = read_triangle(&mut file);
+            let triangle = file.read_triangle();
             if triangle.max() as usize > mesh.vertices.len() {
                 panic!("Face index larger than available vertices\nFace Index: {}\nVertices Length: {}\n at file byte position: {}\n", triangle.max(), mesh.vertices.len(), file.position().unwrap());
             }

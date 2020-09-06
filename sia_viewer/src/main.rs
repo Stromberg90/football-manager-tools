@@ -6,7 +6,7 @@ use kiss3d::{camera::ArcBall, event::WindowEvent, window::Window};
 use nalgebra::{Point2, Point3, Vector3};
 use native_dialog::*;
 use nfd2::Response;
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 use obj_exporter;
 use obj_exporter::{Geometry, ObjSet, Object, Primitive, Shape, TVertex, Vertex};
@@ -42,7 +42,7 @@ fn main() {
                 typ: MessageType::Info,
             };
             dialog.show().unwrap();
-            let mut texture_dir = None;
+            let mut texture_dir: Option<PathBuf> = None;
             if let Ok(Response::Okay(folder)) = nfd2::open_pick_folder(None) {
                 texture_dir = Some(folder);
             }
