@@ -31,6 +31,8 @@ pub enum SiaParseError {
     Header(String),
     #[error("Face index larger than available vertices\nFace Index: {0}\nVertices Length: {1}\n at file byte position: {2}")]
     FaceVertexLenghtMismatch(u16, usize, u64),
+    #[error("{0} is a unkown vertex type")]
+    UnknownVertexType(u32),
     #[error("Expected EHSM, but found {0:#?} at file byte position: {1}")]
     EndTagB([u8; 4], u64),
     #[error("Expected EHSM, but found {0} at file byte position: {1}")]
@@ -122,6 +124,7 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
     let vertex_type = file.read_u32::<LittleEndian>()?;
     dbg!(&vertex_type);
 
+    dbg!(&file.position().unwrap());
     for i in 0..model.num_meshes {
         let mesh = model.meshes.get_mut(i as usize).unwrap();
 
@@ -137,10 +140,15 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
 
             // println!("Unknowns");
             // Thinking these are tangents or binormals, last one is always 1 or -1
-            if vertex_type == 39 {
-                file.skip(16);
-            } else if vertex_type == 47 {
-                file.skip(24);
+            match vertex_type {
+                // 3 here has a smaller amount than the others,
+                // so I think it need less data, like maybe not uv's or normals.
+                // example simatchviewer/mesh/arrow/arrow.sia
+                3 => file.skip(0),
+                39 => file.skip(16),
+                47 => file.skip(24),
+                551 => file.skip(20),
+                _ => return Err(SiaParseError::UnknownVertexType(vertex_type)),
             }
 
             mesh.vertices.push(Vertex {
@@ -150,6 +158,7 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
             })
         }
     }
+    dbg!(&file.position().unwrap());
 
     let number_of_triangles = file.read_u32::<LittleEndian>()? / 3;
 
