@@ -106,21 +106,26 @@ fn main() {
                             c.enable_backface_culling(true);
 
                             if let Some(texture_dir) = &texture_dir {
-                                let diffuse_relative_path = &mesh.materials[0].textures[0].name;
-                                let mut diffuse_absolute_path =
-                                    texture_dir.join(diffuse_relative_path);
-                                diffuse_absolute_path.set_extension("dds");
+                                if let Some(material) = mesh.materials.get(0) {
+                                    if let Some(diffuse) = material.textures.get(0) {
+                                        let diffuse_relative_path = &diffuse.name;
+                                        let mut diffuse_absolute_path =
+                                            texture_dir.join(diffuse_relative_path);
+                                        diffuse_absolute_path.set_extension("dds");
 
-                                if let Ok(texture) = image::open(diffuse_absolute_path) {
-                                    let mut texture_resource =
-                                        texture_manager.add_image(texture, diffuse_relative_path);
+                                        if let Ok(texture) = image::open(diffuse_absolute_path) {
+                                            let mut texture_resource = texture_manager
+                                                .add_image(texture, diffuse_relative_path);
 
-                                    unsafe {
-                                        let text = Rc::get_mut_unchecked(&mut texture_resource);
-                                        text.set_wrapping_s(TextureWrapping::Repeat);
-                                        text.set_wrapping_t(TextureWrapping::Repeat);
+                                            unsafe {
+                                                let text =
+                                                    Rc::get_mut_unchecked(&mut texture_resource);
+                                                text.set_wrapping_s(TextureWrapping::Repeat);
+                                                text.set_wrapping_t(TextureWrapping::Repeat);
+                                            }
+                                            c.set_texture(texture_resource);
+                                        }
                                     }
-                                    c.set_texture(texture_resource);
                                 }
                             }
 

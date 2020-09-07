@@ -23,6 +23,7 @@ use texture::Texture;
 
 use vertex::Vertex;
 
+use nalgebra::Vector2;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -44,7 +45,7 @@ pub enum SiaParseError {
 }
 
 pub fn parse<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
-    let mut file = File::open(filepath)?;
+    let mut file = File::open(&filepath)?;
 
     let mut model = Model::new();
 
@@ -116,15 +117,12 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
     }
     file.skip(64);
 
-    // Maybe this is for this mesh, and the earlier one is for the entire file.
-    let local_num_vertecies = file.read_u32::<LittleEndian>();
-    dbg!(&local_num_vertecies);
+    let total_num_vertecies = file.read_u32::<LittleEndian>();
+    // dbg!(&total_num_vertecies);
 
-    // There seems to be a correlation between this number and the ammount of bytes per vertex.
     let vertex_type = file.read_u32::<LittleEndian>()?;
-    dbg!(&vertex_type);
 
-    dbg!(&file.position().unwrap());
+    // dbg!(&file.position());
     for i in 0..model.num_meshes {
         let mesh = model.meshes.get_mut(i as usize).unwrap();
 
@@ -136,18 +134,23 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
             // Actually, I'm second guessing myself
             let normal = file.read_vector3();
 
-            let uv = file.read_vector2();
+            let uv = match vertex_type {
+                3 => Vector2::<f32>::new(0f32, 0f32),
+                _ => file.read_vector2(),
+            };
 
-            // println!("Unknowns");
             // Thinking these are tangents or binormals, last one is always 1 or -1
             match vertex_type {
-                // 3 here has a smaller amount than the others,
-                // so I think it need less data, like maybe not uv's or normals.
-                // example simatchviewer/mesh/arrow/arrow.sia
                 3 => file.skip(0),
                 39 => file.skip(16),
                 47 => file.skip(24),
+                231 => file.skip(36),
+                239 => file.skip(44),
+                487 => file.skip(56),
+                495 => file.skip(64),
                 551 => file.skip(20),
+                559 => file.skip(28),
+                575 => file.skip(36),
                 _ => return Err(SiaParseError::UnknownVertexType(vertex_type)),
             }
 
@@ -158,7 +161,7 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
             })
         }
     }
-    dbg!(&file.position().unwrap());
+    // dbg!(&file.position());
 
     let number_of_triangles = file.read_u32::<LittleEndian>()? / 3;
 
@@ -176,11 +179,10 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
             mesh.triangles.push(triangle);
         }
     }
-    dbg!(&file.position());
+
     file.skip(8);
     let num = file.read_u8()?;
     if num != 0 {
-        dbg!(num);
         return Ok(model);
     }
     file.skip(4);
