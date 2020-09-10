@@ -8,7 +8,7 @@ pub struct Mesh {
     pub materials_num: u8,
     pub materials: Vec<Material>,
     pub vertices: Vec<Vertex>,
-    pub triangles: Vec<Triangle>,
+    pub triangles: Vec<Triangle<u32>>,
 }
 
 impl Mesh {

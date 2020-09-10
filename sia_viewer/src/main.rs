@@ -75,7 +75,7 @@ fn main() {
                         for mesh in &model.meshes {
                             let mut coords = Vec::new();
                             let mut normals = Vec::new();
-                            let mut triangles = Vec::new();
+                            let mut triangles: Vec<Point3<u16>> = Vec::new();
                             let mut uvs = Vec::new();
 
                             for vertex in &mesh.vertices {
@@ -85,7 +85,11 @@ fn main() {
                             }
 
                             for triangle in &mesh.triangles {
-                                triangles.push(Point3::new(triangle.0, triangle.1, triangle.2));
+                                triangles.push(Point3::new(
+                                    triangle.0 as u16,
+                                    triangle.1 as u16,
+                                    triangle.2 as u16,
+                                ));
                             }
 
                             let mut c = window.add_mesh(
@@ -180,9 +184,9 @@ fn main() {
                                             .iter()
                                             .map(|t| Shape {
                                                 primitive: Primitive::Triangle(
-                                                    (t.0.into(), Some(t.0.into()), None),
-                                                    (t.1.into(), Some(t.1.into()), None),
-                                                    (t.2.into(), Some(t.2.into()), None),
+                                                    (t.0 as usize, Some(t.0 as usize), None),
+                                                    (t.1 as usize, Some(t.1 as usize), None),
+                                                    (t.2 as usize, Some(t.2 as usize), None),
                                                 ),
                                                 groups: vec![],
                                                 smoothing_groups: vec![0],
@@ -226,115 +230,121 @@ fn main() {
                                                                 let mut roughness = PathBuf::from(format!("{}{}", texture.name.split('_').collect::<Vec<_>>().first().cloned().unwrap(), "_roughness"));
                                                                 roughness.set_extension("tga");
 
-                                                                let source_img =
-                                                                image::open(&source_path).unwrap();
-                                                                let mut source_img =
-                                                                    source_img.to_rgba();
-                                                                for pixel in source_img.pixels_mut() {
-                                                                    let image::Rgba(data) = *pixel;
-                                                                    *pixel = image::Rgba([
-                                                                        data[0], data[0], data[0], 255,
-                                                                    ]);
+                                                                if let Ok(source_img) =
+                                                                image::open(&source_path) {
+                                                                    let mut source_img =
+                                                                        source_img.to_rgba();
+                                                                    for pixel in source_img.pixels_mut() {
+                                                                        let image::Rgba(data) = *pixel;
+                                                                        *pixel = image::Rgba([
+                                                                            data[0], data[0], data[0], 255,
+                                                                        ]);
+                                                                    }
+                                                                    source_img
+                                                                        .save(
+                                                                            obj_folder_path.join(
+                                                                                roughness
+                                                                                    .file_name()
+                                                                                    .unwrap(),
+                                                                            ),
+                                                                        )
+                                                                        .unwrap();
                                                                 }
-                                                                source_img
-                                                                    .save(
-                                                                        obj_folder_path.join(
-                                                                            roughness
-                                                                                .file_name()
-                                                                                .unwrap(),
-                                                                        ),
-                                                                    )
-                                                                    .unwrap();
                                                             }
                                                             {
                                                                 let mut metallic = PathBuf::from(format!("{}{}", texture.name.split('_').collect::<Vec<_>>().first().cloned().unwrap(), "_metallic"));
                                                                 metallic.set_extension("tga");
 
-                                                                let source_img =
-                                                                image::open(&source_path).unwrap();
-                                                                let mut source_img =
+                                                                if let Ok(source_img) =
+                                                                image::open(&source_path) {
+                                                                    let mut source_img =
                                                                     source_img.to_rgba();
-                                                                for pixel in source_img.pixels_mut() {
-                                                                    let image::Rgba(data) = *pixel;
-                                                                    *pixel = image::Rgba([
-                                                                        data[1], data[1], data[1], 255,
-                                                                    ]);
-                                                                }
-                                                                source_img
-                                                                    .save(
-                                                                        obj_folder_path.join(
-                                                                            metallic
+                                                                    for pixel in source_img.pixels_mut() {
+                                                                        let image::Rgba(data) = *pixel;
+                                                                        *pixel = image::Rgba([
+                                                                            data[1], data[1], data[1], 255,
+                                                                            ]);
+                                                                        }
+                                                                        source_img
+                                                                        .save(
+                                                                            obj_folder_path.join(
+                                                                                metallic
                                                                                 .file_name()
                                                                                 .unwrap(),
-                                                                        ),
-                                                                    )
-                                                                    .unwrap();
+                                                                            ),
+                                                                        )
+                                                                        .unwrap();
+                                                                    }
                                                             }
                                                             {
                                                                 let mut ambient_occlusion = PathBuf::from(format!("{}{}", texture.name.split('_').collect::<Vec<_>>().first().cloned().unwrap(), "_ambient_occlusion"));
                                                                 ambient_occlusion.set_extension("tga");
 
-                                                                let source_img =
-                                                                image::open(&source_path).unwrap();
-                                                                let mut source_img =
-                                                                    source_img.to_rgba();
-                                                                for pixel in source_img.pixels_mut() {
-                                                                    let image::Rgba(data) = *pixel;
-                                                                    *pixel = image::Rgba([
-                                                                        data[3], data[3], data[3], 255,
-                                                                    ]);
+                                                                if let Ok(source_img) =
+                                                                image::open(&source_path) {
+                                                                    let mut source_img =
+                                                                        source_img.to_rgba();
+                                                                    for pixel in source_img.pixels_mut() {
+                                                                        let image::Rgba(data) = *pixel;
+                                                                        *pixel = image::Rgba([
+                                                                            data[3], data[3], data[3], 255,
+                                                                        ]);
+                                                                    }
+                                                                    source_img
+                                                                        .save(
+                                                                            obj_folder_path.join(
+                                                                                ambient_occlusion
+                                                                                    .file_name()
+                                                                                    .unwrap(),
+                                                                            ),
+                                                                        )
+                                                                        .unwrap();
                                                                 }
-                                                                source_img
-                                                                    .save(
-                                                                        obj_folder_path.join(
-                                                                            ambient_occlusion
-                                                                                .file_name()
-                                                                                .unwrap(),
-                                                                        ),
-                                                                    )
-                                                                    .unwrap();
                                                             }
                                                         },
                                                         TextureType::Normal => {
                                                             let mut normal = PathBuf::from(format!("{}{}", texture.name.split('_').collect::<Vec<_>>().first().cloned().unwrap(), "_normal"));
                                                             normal.set_extension("tga");
 
-                                                            let source_img =
-                                                            image::open(&source_path).unwrap();
-                                                            let mut source_img =
-                                                                source_img.to_rgba();
-                                                            for pixel in source_img.pixels_mut() {
-                                                                let image::Rgba(data) = *pixel;
-                                                                *pixel = image::Rgba([
-                                                                    data[3], data[1], 255, 255,
-                                                                ]);
+                                                            if let Ok(source_img) =
+                                                            image::open(&source_path) {
+                                                                let mut source_img =
+                                                                    source_img.to_rgba();
+                                                                for pixel in source_img.pixels_mut() {
+                                                                    let image::Rgba(data) = *pixel;
+                                                                    *pixel = image::Rgba([
+                                                                        data[3], data[1], 255, 255,
+                                                                    ]);
+                                                                }
+                                                                source_img
+                                                                    .save(
+                                                                        obj_folder_path.join(
+                                                                            normal
+                                                                                .file_name()
+                                                                                .unwrap(),
+                                                                        ),
+                                                                    )
+                                                                    .unwrap();
                                                             }
-                                                            source_img
-                                                                .save(
-                                                                    obj_folder_path.join(
-                                                                        normal
-                                                                            .file_name()
-                                                                            .unwrap(),
-                                                                    ),
-                                                                )
-                                                                .unwrap();
                                                         },
                                                         _ => {
                                                             let mut target_path =
                                                                 PathBuf::from(&texture.name);
                                                             target_path.set_extension("tga");
 
-                                                            let source_img =
-                                                                image::open(source_path).unwrap();
-                                                            source_img
-                                                                .save(
-                                                                    obj_folder_path.join(
-                                                                        target_path
-                                                                            .file_name()
-                                                                            .unwrap(),
-                                                                    ),
-                                                                )
-                                                                .unwrap();
+                                                            if let Ok(source_img) =
+                                                                image::open(source_path) {
+
+                                                                    source_img
+                                                                        .save(
+                                                                            obj_folder_path.join(
+                                                                                target_path
+                                                                                    .file_name()
+                                                                                    .unwrap(),
+                                                                            ),
+                                                                        )
+                                                                        .unwrap();
+                                                                }
                                                         }
                                                     }
                                                 }

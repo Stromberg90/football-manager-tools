@@ -1,4 +1,5 @@
 use byteorder::{LittleEndian, ReadBytesExt};
+use triangle::Triangle;
 
 use std::fs::File;
 
@@ -18,7 +19,7 @@ mod vertex;
 use material::Material;
 use mesh::Mesh;
 use model::Model;
-use stream_ext::StreamExt;
+use stream_ext::{ReadTriangle, StreamExt};
 use texture::Texture;
 
 use vertex::Vertex;
@@ -31,7 +32,7 @@ pub enum SiaParseError {
     #[error("Expexted header SHSM, but found {0}")]
     Header(String),
     #[error("Face index larger than available vertices\nFace Index: {0}\nVertices Length: {1}\n at file byte position: {2}")]
-    FaceVertexLenghtMismatch(u16, usize, u64),
+    FaceVertexLenghtMismatch(u32, usize, u64),
     #[error("{0} is a unkown vertex type")]
     UnknownVertexType(u32),
     #[error("Expected EHSM, but found {0:#?} at file byte position: {1}")]
@@ -117,10 +118,11 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
     }
     file.skip(64);
 
-    let total_num_vertecies = file.read_u32::<LittleEndian>();
-    // dbg!(&total_num_vertecies);
+    let total_num_vertecies = file.read_u32::<LittleEndian>().unwrap();
 
+    // dbg!(&file.position());
     let vertex_type = file.read_u32::<LittleEndian>()?;
+    // dbg!(vertex_type);
 
     // dbg!(&file.position());
     for i in 0..model.num_meshes {
@@ -163,28 +165,46 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
     }
     // dbg!(&file.position());
 
-    let number_of_triangles = file.read_u32::<LittleEndian>()? / 3;
+    let _number_of_triangles = file.read_u32::<LittleEndian>()? / 3;
 
-    for i in 0..model.num_meshes {
-        let mesh = model.meshes.get_mut(i as usize).unwrap();
-        for _ in 0..mesh.num_triangles {
-            let triangle = file.read_triangle();
-            if triangle.max() as usize > mesh.vertices.len() {
-                return Err(SiaParseError::FaceVertexLenghtMismatch(
-                    triangle.max(),
-                    mesh.vertices.len(),
-                    file.position()?,
-                ));
+    if total_num_vertecies > u16::MAX.into() {
+        for i in 0..model.num_meshes {
+            let mesh = model.meshes.get_mut(i as usize).unwrap();
+            for _ in 0..mesh.num_triangles {
+                let triangle: Triangle<u32> = file.read_triangle();
+                if triangle.max() as usize > mesh.vertices.len() {
+                    return Err(SiaParseError::FaceVertexLenghtMismatch(
+                        triangle.max(),
+                        mesh.vertices.len(),
+                        file.position()?,
+                    ));
+                }
+                mesh.triangles.push(triangle.into());
             }
-            mesh.triangles.push(triangle);
+        }
+    } else {
+        for i in 0..model.num_meshes {
+            let mesh = model.meshes.get_mut(i as usize).unwrap();
+            for _ in 0..mesh.num_triangles {
+                let triangle: Triangle<u16> = file.read_triangle();
+                if triangle.max() as usize > mesh.vertices.len() {
+                    return Err(SiaParseError::FaceVertexLenghtMismatch(
+                        triangle.max().into(),
+                        mesh.vertices.len(),
+                        file.position()?,
+                    ));
+                }
+                mesh.triangles.push(triangle.into());
+            }
         }
     }
 
     file.skip(8);
-    let num = file.read_u8()?;
-    if num != 0 {
-        return Ok(model);
-    }
+    let _num = file.read_u8()?;
+    // if num != 0 {
+    //     dbg!(&num);
+    //     return Ok(model);
+    // }
     file.skip(4);
     let mut end_file_tag = [0u8; 4];
     file.read_exact(&mut end_file_tag)?;
