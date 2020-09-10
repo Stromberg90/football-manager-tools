@@ -10,7 +10,7 @@ use std::str;
 mod bounding_box;
 mod material;
 mod mesh;
-mod model;
+pub mod model;
 mod stream_ext;
 pub mod texture;
 mod triangle;
