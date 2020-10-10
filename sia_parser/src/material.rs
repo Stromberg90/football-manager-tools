@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 
 #[pyclass]
 #[derive(Clone)]
-pub struct PyMaterial {
+pub(crate) struct PyMaterial {
     #[pyo3(get)]
     pub name: String,
     #[pyo3(get)]
@@ -13,7 +13,7 @@ pub struct PyMaterial {
     pub textures: Vec<PyTexture>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Material {
     pub name: String,
     pub kind: String,

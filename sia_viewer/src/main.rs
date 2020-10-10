@@ -1,4 +1,4 @@
-#![feature(get_mut_unchecked)]
+// #![feature(get_mut_unchecked)]
 
 use kiss3d::light::Light;
 use kiss3d::resource::{Mesh, TextureManager, TextureWrapping};
@@ -55,7 +55,7 @@ fn main() {
     match nfd2::open_file_dialog(None, None).expect("Couldn't open file") {
         Response::Okay(filepath) => {
             if filepath.extension().unwrap() == "sia" {
-                model = Some(sia_parser::parse(filepath));
+                model = Some(sia_parser::from_path(filepath));
                 match model.as_ref().unwrap() {
                     Ok(model) => {
                         show_info_dialog(
@@ -112,15 +112,9 @@ fn main() {
                                         diffuse_absolute_path.set_extension("dds");
 
                                         if let Ok(texture) = image::open(diffuse_absolute_path) {
-                                            let mut texture_resource = texture_manager
+                                            let texture_resource = texture_manager
                                                 .add_image(texture, diffuse_relative_path);
 
-                                            unsafe {
-                                                let text =
-                                                    Rc::get_mut_unchecked(&mut texture_resource);
-                                                text.set_wrapping_s(TextureWrapping::Repeat);
-                                                text.set_wrapping_t(TextureWrapping::Repeat);
-                                            }
                                             c.set_texture(texture_resource);
                                         }
                                     }

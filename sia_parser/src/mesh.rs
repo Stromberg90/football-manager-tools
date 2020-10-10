@@ -9,7 +9,7 @@ use pyo3::prelude::*;
 
 #[pyclass]
 #[derive(Clone)]
-pub struct PyMesh {
+pub(crate) struct PyMesh {
     #[pyo3(get)]
     pub id: u32,
     #[pyo3(get)]
@@ -20,7 +20,7 @@ pub struct PyMesh {
     pub triangles: Vec<PyTriangle>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Mesh {
     pub num_vertices: u32,
     pub num_triangles: u32,
@@ -32,7 +32,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Mesh {
             num_vertices: 0,
             num_triangles: 0,

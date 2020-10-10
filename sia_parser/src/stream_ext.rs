@@ -15,7 +15,7 @@ pub trait StreamExt {
     fn read_string_u8_len(&mut self) -> Result<String, Utf8Error>;
 }
 
-pub trait ReadTriangle<T> {
+pub(crate) trait ReadTriangle<T> {
     fn read_triangle(&mut self) -> Triangle<T>;
 }
 
@@ -73,10 +73,7 @@ impl StreamExt for File {
 
     fn read_string(&mut self) -> Result<String, Utf8Error> {
         let string_length = self.read_u32::<LittleEndian>().unwrap();
-        let mut string_buf = Vec::<u8>::with_capacity(string_length as usize);
-        for _ in 0..string_length {
-            string_buf.push(0);
-        }
+        let mut string_buf = vec![0u8; string_length as usize];
 
         self.read_exact(&mut string_buf).unwrap();
         Ok(str::from_utf8(&string_buf)?.to_owned())
@@ -84,10 +81,7 @@ impl StreamExt for File {
 
     fn read_string_u8_len(&mut self) -> Result<String, Utf8Error> {
         let string_length = self.read_u8().unwrap();
-        let mut string_buf = Vec::<u8>::with_capacity(string_length as usize);
-        for _ in 0..string_length {
-            string_buf.push(0);
-        }
+        let mut string_buf = vec![0u8; string_length as usize];
 
         self.read_exact(&mut string_buf).unwrap();
         Ok(str::from_utf8(&string_buf)?.to_owned())

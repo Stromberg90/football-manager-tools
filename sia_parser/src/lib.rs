@@ -40,9 +40,9 @@ pub enum SiaParseError {
     UnknownVertexType(u32),
     #[error("{0} is a unkown type at file byte position: {1}")]
     UnknownType(u8, u64),
-    #[error("Expected EHSM, but found {0:#?} at file byte position: {1} _num is {2}")]
+    #[error("Expected EHSM, but found {0:#?} at file byte position: {1} num is {2}")]
     EndTagB([u8; 4], u64, u8),
-    #[error("Expected EHSM, but found {0} at file byte position: {1} _num is {2}")]
+    #[error("Expected EHSM, but found {0} at file byte position: {1} num is {2}")]
     EndTagS(String, u64, u8),
     #[error(transparent)]
     File(#[from] std::io::Error),
@@ -52,7 +52,7 @@ pub enum SiaParseError {
 
 #[pyfunction]
 fn load_file(filepath: String) -> PyResult<PyModel> {
-    if let Ok(model) = parse(&filepath) {
+    if let Ok(model) = from_path(&filepath) {
         Ok(model.into())
     } else {
         Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
@@ -66,24 +66,49 @@ fn load_file(filepath: String) -> PyResult<PyModel> {
 fn save_file() {}
 
 #[pymodule]
-fn sia_parser(py: Python, m: &PyModule) -> PyResult<()> {
+fn sia_parser(_: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(load_file, m)?)?;
     m.add_function(wrap_pyfunction!(save_file, m)?)?;
 
     Ok(())
 }
 
-pub fn parse<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
-    let mut file = File::open(&filepath)?;
-
-    let mut model = Model::new();
-
+fn read_header(file: &mut File) -> Result<(), SiaParseError> {
     let mut begin_file_tag = [0u8; 4];
     file.read_exact(&mut begin_file_tag)?;
     let begin_file_tag = str::from_utf8(&begin_file_tag)?;
     if begin_file_tag != "SHSM" {
         return Err(SiaParseError::Header(begin_file_tag.into()));
     }
+    Ok(())
+}
+
+fn read_file_end(file: &mut File, num: u8) -> Result<(), SiaParseError> {
+    let mut end_file_tag = [0u8; 4];
+    file.read_exact(&mut end_file_tag)?;
+
+    match str::from_utf8(&end_file_tag) {
+        Ok(s) => {
+            if s != "EHSM" {
+                return Err(SiaParseError::EndTagS(s.into(), file.position()?, num));
+            }
+        }
+        Err(_) => {
+            return Err(SiaParseError::EndTagB(end_file_tag, file.position()?, num));
+        }
+    }
+    Ok(())
+}
+
+pub fn from_path<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
+    let mut file = File::open(&filepath)?;
+    from_file(&mut file)
+}
+
+pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
+    let mut model = Model::new();
+
+    read_header(file)?;
 
     model.maybe_version = file.read_u32::<LittleEndian>()?;
 
@@ -103,12 +128,12 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
 
     for _ in 0..model.objects_num {
         let mut mesh = Mesh::new();
-        file.read_u32::<LittleEndian>()?;
+        file.skip(4); // What could this be?
 
         // Vertices
         mesh.num_vertices = file.read_u32::<LittleEndian>()?;
 
-        file.read_u32::<LittleEndian>()?;
+        file.skip(4); // What could this be?
 
         // Number of triangles when divided by 3
         mesh.num_triangles = file.read_u32::<LittleEndian>()? / 3;
@@ -195,37 +220,26 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
 
     let _number_of_triangles = file.read_u32::<LittleEndian>()? / 3;
 
-    if total_num_vertecies > u16::MAX.into() {
-        for i in 0..model.num_meshes {
-            let mesh = model.meshes.get_mut(i as usize).unwrap();
-            for _ in 0..mesh.num_triangles {
-                let triangle: Triangle<u32> = file.read_triangle();
-                if triangle.max() as usize > mesh.vertices.len() {
-                    return Err(SiaParseError::FaceVertexLenghtMismatch(
-                        triangle.max(),
-                        mesh.vertices.len(),
-                        file.position()?,
-                    ));
-                }
-                mesh.triangles.push(triangle.into());
-            }
-        }
-    } else {
-        for i in 0..model.num_meshes {
-            let mesh = model.meshes.get_mut(i as usize).unwrap();
-            for _ in 0..mesh.num_triangles {
+    for i in 0..model.num_meshes {
+        let mesh = model.meshes.get_mut(i as usize).unwrap();
+        for _ in 0..mesh.num_triangles {
+            let triangle: Triangle<u32> = if total_num_vertecies > u16::MAX.into() {
+                file.read_triangle()
+            } else {
                 let triangle: Triangle<u16> = file.read_triangle();
-                if triangle.max() as usize > mesh.vertices.len() {
-                    return Err(SiaParseError::FaceVertexLenghtMismatch(
-                        triangle.max().into(),
-                        mesh.vertices.len(),
-                        file.position()?,
-                    ));
-                }
-                mesh.triangles.push(triangle.into());
+                triangle.into()
+            };
+            if triangle.max() as usize > mesh.vertices.len() {
+                return Err(SiaParseError::FaceVertexLenghtMismatch(
+                    triangle.max(),
+                    mesh.vertices.len(),
+                    file.position()?,
+                ));
             }
+            mesh.triangles.push(triangle);
         }
     }
+
     file.skip(8);
     // match vertex_type {
     //     39 => file.skip(9),
@@ -292,19 +306,7 @@ pub fn parse<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
     // }
     file.skip(4);
 
-    let mut end_file_tag = [0u8; 4];
-    file.read_exact(&mut end_file_tag)?;
-
-    match str::from_utf8(&end_file_tag) {
-        Ok(s) => {
-            if s != "EHSM" {
-                return Err(SiaParseError::EndTagS(s.into(), file.position()?, num));
-            }
-        }
-        Err(_) => {
-            return Err(SiaParseError::EndTagB(end_file_tag, file.position()?, num));
-        }
-    }
+    read_file_end(file, num)?;
 
     Ok(model)
 }

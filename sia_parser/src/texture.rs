@@ -13,7 +13,7 @@ type PyTextureType = String;
 
 #[pyclass]
 #[derive(Clone)]
-pub struct PyTexture {
+pub(crate) struct PyTexture {
     #[pyo3(get)]
     pub name: String,
     #[pyo3(get)]
@@ -27,7 +27,7 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn new<S: Into<String>>(name: S, id: u8) -> Self {
+    pub(crate) fn new<S: Into<String>>(name: S, id: u8) -> Self {
         Texture {
             name: name.into(),
             id: id.into(),

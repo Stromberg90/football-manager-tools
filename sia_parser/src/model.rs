@@ -4,13 +4,13 @@ use crate::mesh::{Mesh, PyMesh};
 use pyo3::prelude::*;
 
 #[pyclass]
-pub struct PyModel {
+pub(crate) struct PyModel {
     #[pyo3(get)]
     pub name: String,
     #[pyo3(get)]
     pub meshes: Vec<PyMesh>,
 }
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Model {
     pub who_knows: f32,
     pub objects_num: u32,
@@ -25,7 +25,7 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Model {
             who_knows: 0f32,
             objects_num: 0,

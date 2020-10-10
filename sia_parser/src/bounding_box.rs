@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
 #[pyclass]
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct BoundingBox {
     #[pyo3(get)]
     pub max_x: f32,
