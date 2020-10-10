@@ -2,6 +2,7 @@ use crate::{bounding_box::BoundingBox, triangle::Triangle};
 use byteorder::{LittleEndian, ReadBytesExt};
 use io::{Read, Seek, SeekFrom};
 use nalgebra::{Vector2, Vector3};
+use std::str::Utf8Error;
 use std::{fs::File, io, str};
 
 pub trait StreamExt {
@@ -10,7 +11,8 @@ pub trait StreamExt {
     fn read_vector2(&mut self) -> Vector2<f32>;
     fn read_vector3(&mut self) -> Vector3<f32>;
     fn read_bounding_box(&mut self) -> BoundingBox;
-    fn read_string(&mut self) -> String;
+    fn read_string(&mut self) -> Result<String, Utf8Error>;
+    fn read_string_u8_len(&mut self) -> Result<String, Utf8Error>;
 }
 
 pub trait ReadTriangle<T> {
@@ -69,7 +71,7 @@ impl StreamExt for File {
         }
     }
 
-    fn read_string(&mut self) -> String {
+    fn read_string(&mut self) -> Result<String, Utf8Error> {
         let string_length = self.read_u32::<LittleEndian>().unwrap();
         let mut string_buf = Vec::<u8>::with_capacity(string_length as usize);
         for _ in 0..string_length {
@@ -77,6 +79,17 @@ impl StreamExt for File {
         }
 
         self.read_exact(&mut string_buf).unwrap();
-        str::from_utf8(&string_buf).unwrap().to_owned()
+        Ok(str::from_utf8(&string_buf)?.to_owned())
+    }
+
+    fn read_string_u8_len(&mut self) -> Result<String, Utf8Error> {
+        let string_length = self.read_u8().unwrap();
+        let mut string_buf = Vec::<u8>::with_capacity(string_length as usize);
+        for _ in 0..string_length {
+            string_buf.push(0);
+        }
+
+        self.read_exact(&mut string_buf).unwrap();
+        Ok(str::from_utf8(&string_buf)?.to_owned())
     }
 }

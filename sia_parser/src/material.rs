@@ -1,4 +1,17 @@
-use crate::texture::Texture;
+use crate::texture::{PyTexture, Texture};
+
+use pyo3::prelude::*;
+
+#[pyclass]
+#[derive(Clone)]
+pub struct PyMaterial {
+    #[pyo3(get)]
+    pub name: String,
+    #[pyo3(get)]
+    pub kind: String,
+    #[pyo3(get)]
+    pub textures: Vec<PyTexture>,
+}
 
 #[derive(Debug)]
 pub struct Material {
@@ -15,6 +28,16 @@ impl Material {
             kind: String::new(),
             textures_num: 0,
             textures: Vec::new(),
+        }
+    }
+}
+
+impl Into<PyMaterial> for Material {
+    fn into(self) -> PyMaterial {
+        PyMaterial {
+            name: self.name,
+            kind: self.kind,
+            textures: self.textures.into_iter().map(|t| t.into()).collect(),
         }
     }
 }

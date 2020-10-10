@@ -1,3 +1,5 @@
+use pyo3::prelude::*;
+
 #[derive(Debug)]
 pub enum TextureType {
     Albedo,
@@ -5,6 +7,17 @@ pub enum TextureType {
     RoughnessMetallicAmbientOcclusion,
     Mask, // [ma] looks to be some sort of mask, but I don't quite how it is used.
     Lightmap,
+}
+
+type PyTextureType = String;
+
+#[pyclass]
+#[derive(Clone)]
+pub struct PyTexture {
+    #[pyo3(get)]
+    pub name: String,
+    #[pyo3(get)]
+    pub id: PyTextureType,
 }
 
 #[derive(Debug)]
@@ -31,6 +44,29 @@ impl From<u8> for TextureType {
             5 => TextureType::Mask,
             6 => TextureType::Lightmap,
             _ => panic!("Couldn't convert {} to TextureType", id),
+        }
+    }
+}
+
+impl From<TextureType> for PyTextureType {
+    fn from(t: TextureType) -> Self {
+        match t {
+            TextureType::Albedo => "Albedo".into(),
+            TextureType::Normal => "Normal".into(),
+            TextureType::RoughnessMetallicAmbientOcclusion => {
+                "RoughnessMetallicAmbientOcclusion".into()
+            }
+            TextureType::Mask => "Mask".into(),
+            TextureType::Lightmap => "Lightmap".into(),
+        }
+    }
+}
+
+impl Into<PyTexture> for Texture {
+    fn into(self) -> PyTexture {
+        PyTexture {
+            name: self.name,
+            id: self.id.into(),
         }
     }
 }

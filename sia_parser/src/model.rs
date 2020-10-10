@@ -1,6 +1,15 @@
 use crate::bounding_box::BoundingBox;
-use crate::mesh::Mesh;
+use crate::mesh::{Mesh, PyMesh};
 
+use pyo3::prelude::*;
+
+#[pyclass]
+pub struct PyModel {
+    #[pyo3(get)]
+    pub name: String,
+    #[pyo3(get)]
+    pub meshes: Vec<PyMesh>,
+}
 #[derive(Debug)]
 pub struct Model {
     pub who_knows: f32,
@@ -28,6 +37,19 @@ impl Model {
             num_vertices: 0,
             num_meshes: 0,
             meshes: Vec::new(),
+        }
+    }
+}
+
+impl Into<PyModel> for Model {
+    fn into(self) -> PyModel {
+        PyModel {
+            name: self.name,
+            meshes: self
+                .meshes
+                .into_iter()
+                .map(|m| m.into())
+                .collect::<Vec<_>>(),
         }
     }
 }
