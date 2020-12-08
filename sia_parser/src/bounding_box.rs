@@ -1,19 +1,10 @@
-use pyo3::prelude::*;
-
-#[pyclass]
 #[derive(Debug, Default, Clone)]
 pub struct BoundingBox {
-    #[pyo3(get)]
     pub max_x: f32,
-    #[pyo3(get)]
     pub max_y: f32,
-    #[pyo3(get)]
     pub max_z: f32,
-    #[pyo3(get)]
     pub min_x: f32,
-    #[pyo3(get)]
     pub min_y: f32,
-    #[pyo3(get)]
     pub min_z: f32,
 }
 

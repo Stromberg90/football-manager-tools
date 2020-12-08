@@ -8,11 +8,13 @@ use std::{fs::File, io, str};
 pub trait StreamExt {
     fn skip(&mut self, num_bytes: i64);
     fn position(&mut self) -> io::Result<u64>;
+    fn read_num(&mut self, num_bytes: usize) -> Option<Vec<u8>>;
     fn read_vector2(&mut self) -> Vector2<f32>;
     fn read_vector3(&mut self) -> Vector3<f32>;
     fn read_bounding_box(&mut self) -> BoundingBox;
     fn read_string(&mut self) -> Result<String, Utf8Error>;
     fn read_string_u8_len(&mut self) -> Result<String, Utf8Error>;
+    fn read_string_with_length(&mut self, length: usize) -> Result<String, Utf8Error>;
 }
 
 pub(crate) trait ReadTriangle<T> {
@@ -79,11 +81,26 @@ impl StreamExt for File {
         Ok(str::from_utf8(&string_buf)?.to_owned())
     }
 
+    fn read_string_with_length(&mut self, length: usize) -> Result<String, Utf8Error> {
+        let mut string_buf = vec![0u8; length];
+
+        self.read_exact(&mut string_buf).unwrap();
+        Ok(str::from_utf8(&string_buf)?.to_owned())
+    }
+
     fn read_string_u8_len(&mut self) -> Result<String, Utf8Error> {
         let string_length = self.read_u8().unwrap();
         let mut string_buf = vec![0u8; string_length as usize];
 
         self.read_exact(&mut string_buf).unwrap();
         Ok(str::from_utf8(&string_buf)?.to_owned())
+    }
+
+    fn read_num(&mut self, bytes_num: usize) -> Option<Vec<u8>> {
+        let mut bytes = vec![0u8; bytes_num];
+        if self.read_exact(&mut bytes).is_ok() {
+            return Some(bytes);
+        }
+        None
     }
 }

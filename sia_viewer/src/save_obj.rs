@@ -8,7 +8,7 @@ use sia_parser::texture::TextureType;
 
 pub(crate) fn save_as_obj(model: &Model, texture_dir: &Option<PathBuf>) {
     let mut objects = Vec::new();
-    for mesh in &model.meshes {
+    for mesh in model.meshes.values().collect::<Vec<_>>() {
         let object = Object {
             name: model.name.to_owned(),
             vertices: mesh
@@ -69,6 +69,8 @@ pub(crate) fn save_as_obj(model: &Model, texture_dir: &Option<PathBuf>) {
                     if let Some(texture_dir) = &texture_dir {
                         let textures = model
                             .meshes
+                            .values()
+                            .collect::<Vec<_>>()
                             .iter()
                             .flat_map(|m| &m.materials)
                             .into_iter()
@@ -95,7 +97,7 @@ pub(crate) fn save_as_obj(model: &Model, texture_dir: &Option<PathBuf>) {
                                         roughness.set_extension("tga");
 
                                         if let Ok(source_img) = image::open(&source_path) {
-                                            let mut source_img = source_img.to_rgba();
+                                            let mut source_img = source_img.to_rgba8();
                                             for pixel in source_img.pixels_mut() {
                                                 let image::Rgba(data) = *pixel;
                                                 *pixel =
@@ -124,7 +126,7 @@ pub(crate) fn save_as_obj(model: &Model, texture_dir: &Option<PathBuf>) {
                                         metallic.set_extension("tga");
 
                                         if let Ok(source_img) = image::open(&source_path) {
-                                            let mut source_img = source_img.to_rgba();
+                                            let mut source_img = source_img.to_rgba8();
                                             for pixel in source_img.pixels_mut() {
                                                 let image::Rgba(data) = *pixel;
                                                 *pixel =
@@ -153,7 +155,7 @@ pub(crate) fn save_as_obj(model: &Model, texture_dir: &Option<PathBuf>) {
                                         ambient_occlusion.set_extension("tga");
 
                                         if let Ok(source_img) = image::open(&source_path) {
-                                            let mut source_img = source_img.to_rgba();
+                                            let mut source_img = source_img.to_rgba8();
                                             for pixel in source_img.pixels_mut() {
                                                 let image::Rgba(data) = *pixel;
                                                 *pixel =
@@ -184,7 +186,7 @@ pub(crate) fn save_as_obj(model: &Model, texture_dir: &Option<PathBuf>) {
                                     normal.set_extension("tga");
 
                                     if let Ok(source_img) = image::open(&source_path) {
-                                        let mut source_img = source_img.to_rgba();
+                                        let mut source_img = source_img.to_rgba8();
                                         for pixel in source_img.pixels_mut() {
                                             let image::Rgba(data) = *pixel;
                                             *pixel = image::Rgba([data[3], data[1], 255, 255]);

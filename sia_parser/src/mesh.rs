@@ -1,24 +1,4 @@
-use crate::{
-    material::Material,
-    material::PyMaterial,
-    triangle::PyTriangle,
-    triangle::Triangle,
-    vertex::{PyVertex, Vertex},
-};
-use pyo3::prelude::*;
-
-#[pyclass]
-#[derive(Clone)]
-pub(crate) struct PyMesh {
-    #[pyo3(get)]
-    pub id: u32,
-    #[pyo3(get)]
-    pub materials: Vec<PyMaterial>,
-    #[pyo3(get)]
-    pub vertices: Vec<PyVertex>,
-    #[pyo3(get)]
-    pub triangles: Vec<PyTriangle>,
-}
+use crate::{material::Material, triangle::Triangle, vertex::Vertex};
 
 #[derive(Debug, Default)]
 pub struct Mesh {
@@ -41,17 +21,6 @@ impl Mesh {
             materials: Vec::new(),
             vertices: Vec::new(),
             triangles: Vec::new(),
-        }
-    }
-}
-
-impl Into<PyMesh> for Mesh {
-    fn into(self) -> PyMesh {
-        PyMesh {
-            id: self.id,
-            materials: self.materials.into_iter().map(|m| m.into()).collect(),
-            vertices: self.vertices.into_iter().map(|v| v.into()).collect(),
-            triangles: self.triangles.into_iter().map(|v| v.into()).collect(),
         }
     }
 }

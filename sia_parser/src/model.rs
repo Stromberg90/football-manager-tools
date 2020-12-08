@@ -1,15 +1,8 @@
+use std::collections::HashMap;
+
 use crate::bounding_box::BoundingBox;
-use crate::mesh::{Mesh, PyMesh};
+use crate::mesh::Mesh;
 
-use pyo3::prelude::*;
-
-#[pyclass]
-pub(crate) struct PyModel {
-    #[pyo3(get)]
-    pub name: String,
-    #[pyo3(get)]
-    pub meshes: Vec<PyMesh>,
-}
 #[derive(Debug, Default)]
 pub struct Model {
     pub who_knows: f32,
@@ -21,7 +14,7 @@ pub struct Model {
     pub bounding_box: BoundingBox,
     pub num_vertices: u32,
     pub num_meshes: u32,
-    pub meshes: Vec<Mesh>,
+    pub meshes: HashMap<usize, Mesh>,
 }
 
 impl Model {
@@ -36,20 +29,7 @@ impl Model {
             bounding_box: BoundingBox::new(),
             num_vertices: 0,
             num_meshes: 0,
-            meshes: Vec::new(),
-        }
-    }
-}
-
-impl Into<PyModel> for Model {
-    fn into(self) -> PyModel {
-        PyModel {
-            name: self.name,
-            meshes: self
-                .meshes
-                .into_iter()
-                .map(|m| m.into())
-                .collect::<Vec<_>>(),
+            meshes: HashMap::new(), // I'm using this instead of a vec, cause I need to make sure that the indecies match
         }
     }
 }

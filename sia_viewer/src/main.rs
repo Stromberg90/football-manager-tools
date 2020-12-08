@@ -66,7 +66,7 @@ fn main() {
                             texture_dir = Some(folder);
                         }
 
-                        for mesh in &model.meshes {
+                        for mesh in model.meshes.values().collect::<Vec<_>>() {
                             let mut coords = Vec::new();
                             let mut normals = Vec::new();
                             let mut triangles: Vec<Point3<u16>> = Vec::new();

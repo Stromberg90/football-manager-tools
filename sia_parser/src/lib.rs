@@ -18,7 +18,7 @@ mod vertex;
 
 use material::Material;
 use mesh::Mesh;
-use model::{Model, PyModel};
+use model::Model;
 use stream_ext::{ReadTriangle, StreamExt};
 use texture::Texture;
 
@@ -27,8 +27,25 @@ use vertex::Vertex;
 use nalgebra::Vector2;
 use thiserror::Error;
 
-use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
+enum MeshType {
+    VariableLength,
+    BodyPart,
+    RearCap,
+    StadiumRoof,
+    Unknown,
+}
+
+impl From<u8> for MeshType {
+    fn from(value: u8) -> Self {
+        match value {
+            8 => Self::VariableLength,
+            88 => Self::BodyPart,
+            152 => Self::RearCap,
+            216 => Self::StadiumRoof,
+            _ => Self::Unknown,
+        }
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum SiaParseError {
@@ -48,29 +65,6 @@ pub enum SiaParseError {
     File(#[from] std::io::Error),
     #[error(transparent)]
     Utf8(#[from] std::str::Utf8Error),
-}
-
-#[pyfunction]
-fn load_file(filepath: String) -> PyResult<PyModel> {
-    if let Ok(model) = from_path(&filepath) {
-        Ok(model.into())
-    } else {
-        Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
-            "Couldn't load file: {}",
-            filepath
-        )))
-    }
-}
-
-#[pyfunction]
-fn save_file() {}
-
-#[pymodule]
-fn sia_parser(_: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(load_file, m)?)?;
-    m.add_function(wrap_pyfunction!(save_file, m)?)?;
-
-    Ok(())
 }
 
 fn read_header(file: &mut File) -> Result<(), SiaParseError> {
@@ -118,8 +112,8 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
     // changing them did nothing
     file.skip(12);
 
-    // This might be some sort of scale, since it tends to resemble another bouding box value
-    // changing it did nothing
+    // This might be some sort of scale, since it tends to resemble another bouding box value.
+    // Maybe sphere radius
     model.who_knows = file.read_f32::<LittleEndian>()?;
 
     model.bounding_box = file.read_bounding_box();
@@ -128,29 +122,28 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
 
     for _ in 0..model.objects_num {
         let mut mesh = Mesh::new();
-        file.skip(4); // What could this be?
+        file.skip(4); // What could this be?, when changing them away from zero's it either crashed or the mesh was invisible.
 
         // Vertices
         mesh.num_vertices = file.read_u32::<LittleEndian>()?;
 
-        file.skip(4); // What could this be?
+        file.skip(4); // What could this be?, when changing them away from zero's it crashed I only tested once.
 
         // Number of triangles when divided by 3
         mesh.num_triangles = file.read_u32::<LittleEndian>()? / 3;
 
         // ID
         mesh.id = file.read_u32::<LittleEndian>()?;
-        file.skip(8);
-        model.meshes.push(mesh);
+        file.skip(8); // All of these are set to 255, changing them to zero did crash the game.
+        model.meshes.insert(mesh.id as usize, mesh);
     }
 
     model.num_meshes = file.read_u32::<LittleEndian>()?;
 
-    // Changing these did nothing
-    file.skip(16);
+    file.skip(16); // After changing these to zero mesh is still there, but the lighting has changed, interesting.
 
     for i in 0..model.num_meshes {
-        let mut mesh = model.meshes.get_mut(i as usize).unwrap();
+        let mut mesh = model.meshes.get_mut(&(i as usize)).unwrap();
         let material_kind = file.read_string()?;
         mesh.materials_num = file.read_u8()?;
         for _ in 0..mesh.materials_num {
@@ -169,17 +162,15 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
             file.skip(80);
         }
     }
-    file.skip(64);
+
+    file.skip(64); // Changed all of these to 0, mesh still showed up and looked normal
 
     let total_num_vertecies = file.read_u32::<LittleEndian>().unwrap();
 
-    // dbg!(&file.position());
     let vertex_type = file.read_u32::<LittleEndian>()?;
-    // dbg!(vertex_type);
 
-    // dbg!(&file.position());
     for i in 0..model.num_meshes {
-        let mesh = model.meshes.get_mut(i as usize).unwrap();
+        let mesh = model.meshes.get_mut(&(i as usize)).unwrap();
 
         for _ in 0..mesh.num_vertices {
             let pos = file.read_vector3();
@@ -200,6 +191,7 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
                 3 => file.skip(0),
                 39 => file.skip(16),
                 47 => file.skip(24), // This might be a second uv set, 24 bytes matches with another set of uv's
+                199 => file.skip(20),
                 231 => file.skip(36),
                 239 => file.skip(44),
                 487 => file.skip(56),
@@ -221,7 +213,7 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
     let _number_of_triangles = file.read_u32::<LittleEndian>()? / 3;
 
     for i in 0..model.num_meshes {
-        let mesh = model.meshes.get_mut(i as usize).unwrap();
+        let mesh = model.meshes.get_mut(&(i as usize)).unwrap();
         for _ in 0..mesh.num_triangles {
             let triangle: Triangle<u32> = if total_num_vertecies > u16::MAX.into() {
                 file.read_triangle()
@@ -240,70 +232,65 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
         }
     }
 
-    file.skip(8);
-    // match vertex_type {
-    //     39 => file.skip(9),
-    //     _ => {}
-    // }
-
-    // match vertex_type {
-    //     231 => {
-    //         let other_num = file.read_u32::<LittleEndian>().unwrap();
-    //         if other_num != 0 {
-    //             let number_of_something = file.read_u32::<LittleEndian>().unwrap();
-    //             file.skip(((56 * number_of_something) + 4).into());
-    //         }
-    //     }
-    //     39 => {
-    //         let other_num = file.read_u16::<LittleEndian>().unwrap();
-    //         if other_num != 0 {
-    //             let number_of_something = file.read_u32::<LittleEndian>().unwrap();
-    //             file.skip((44 * number_of_something).into());
-    //         }
-    //     }
-    //     _ => {}
-    // }
+    // These two numbers seems to be related to how many bytes there are to read after, maybe bones or something?
+    // But I've yet to find out exactly how they related to each other, it doesn't seem to be as simple as some_number * some other number
+    let some_number = file.read_u32::<LittleEndian>()?;
+    let some_number2 = file.read_u32::<LittleEndian>()?;
+    if some_number != 0 {
+        // println!("some_number: {}", some_number);
+    }
+    if some_number2 != 0 {
+        // println!("some_number2: {}", some_number2);
+    }
 
     let num = file.read_u8()?;
 
-    // match num {
-    //     0 => {}
-    //     7 => file.skip(10),
-    //     2 => file.skip(16),
-    //     58 => {
-    //         let kind = file.read_string_u8_len()?;
-    //         match kind.as_ref() {
-    //             "mesh_type" => {
-    //                 file.skip(5);
-    //                 let _ = file.read_string_u8_len()?;
-    //                 file.skip(1);
-    //             }
-    //             _ => return Err(SiaParseError::UnknownType(0, file.position()?)),
-    //         }
-    //     }
-    //     42 => {
-    //         let kind = file.read_string_u8_len()?;
-    //         match kind.as_ref() {
-    //             "mesh_type" => {
-    //                 let type_kind = file.read_u8().unwrap();
-    //                 match type_kind {
-    //                     // hair
-    //                     88 => file.skip(4),
-    //                     // STADIUM_ROOF
-    //                     216 => file.skip(12),
-    //                     _ => return Err(SiaParseError::UnknownType(type_kind, file.position()?)),
-    //                 }
-    //             }
-    //             "is_banner" => {
-    //                 let _ = file.read_u8().unwrap() != 0;
-    //             }
-    //             _ => return Err(SiaParseError::UnknownType(0, file.position()?)),
-    //         }
-    //     }
-    //     _ => {
-    //         return Err(SiaParseError::UnknownType(num, file.position()?));
-    //     }
-    // }
+    match num {
+        0 => {}
+        42 => {
+            let kind = file.read_string_u8_len()?;
+            match kind.as_ref() {
+                "mesh_type" => {
+                    let mesh_type: MeshType = file.read_u8().unwrap().into();
+                    match mesh_type {
+                        MeshType::VariableLength => {
+                            let _ = file.read_string();
+                        }
+                        MeshType::BodyPart => {
+                            let _ = file.read_string_with_length(4);
+                        }
+                        MeshType::RearCap => {
+                            let _ = file.read_string_with_length(8);
+                        }
+                        MeshType::StadiumRoof => {
+                            let _ = file.read_string_with_length(12);
+                        }
+                        MeshType::Unknown => {
+                            return Err(SiaParseError::UnknownType(
+                                mesh_type as u8,
+                                file.position()?,
+                            ))
+                        }
+                    }
+                }
+                "is_banner" => {
+                    // This should of course be a field on the model struct
+                    // then again, if this isn't a banner why whould this flag even be here?
+                    let _is_banner = file.read_u8().unwrap() != 0;
+                }
+                "is_comp_banner" => {
+                    // This should of course be a field on the model struct
+                    // then again, if this isn't a banner why whould this flag even be here?
+                    let _is_comp_banner = file.read_u8().unwrap() != 0;
+                }
+                _ => return Err(SiaParseError::UnknownType(0, file.position()?)),
+            }
+        }
+        _ => {
+            return Err(SiaParseError::UnknownType(num, file.position()?));
+        }
+    }
+
     file.skip(4);
 
     read_file_end(file, num)?;
