@@ -3,6 +3,13 @@ use std::collections::HashMap;
 use crate::bounding_box::BoundingBox;
 use crate::mesh::Mesh;
 
+#[derive(Debug)]
+pub enum EndKind {
+	MeshType(String),
+	IsBanner(bool),
+	IsCompBanner(bool),
+}
+
 #[derive(Debug, Default)]
 pub struct Model {
     pub who_knows: f32,
@@ -15,6 +22,7 @@ pub struct Model {
     pub num_vertices: u32,
     pub num_meshes: u32,
     pub meshes: HashMap<usize, Mesh>,
+	pub end_kind: Option<EndKind>,
 }
 
 impl Model {
@@ -30,6 +38,7 @@ impl Model {
             num_vertices: 0,
             num_meshes: 0,
             meshes: HashMap::new(), // I'm using this instead of a vec, cause I need to make sure that the indecies match
+			end_kind: None,
         }
     }
 }

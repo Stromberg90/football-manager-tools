@@ -1,5 +1,3 @@
-// #![feature(get_mut_unchecked)]
-
 use kiss3d::light::Light;
 use kiss3d::resource::{Mesh, TextureManager, TextureWrapping};
 use kiss3d::{camera::ArcBall, event::WindowEvent, window::Window};

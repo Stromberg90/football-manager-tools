@@ -18,7 +18,7 @@ mod vertex;
 
 use material::Material;
 use mesh::Mesh;
-use model::Model;
+use model::{EndKind, Model};
 use stream_ext::{ReadTriangle, StreamExt};
 use texture::Texture;
 
@@ -61,6 +61,10 @@ pub enum SiaParseError {
     EndTagB([u8; 4], u64, u8),
     #[error("Expected EHSM, but found {0} at file byte position: {1} num is {2}")]
     EndTagS(String, u64, u8),
+    #[error("{0} is a unkown cap type at file byte position: {1}")]
+    InvalidCapType(u32, u64),
+    #[error("{0} is a unkown cap type id at file byte position: {1}")]
+    InvalidCapTypeId(u32, u64),
     #[error(transparent)]
     File(#[from] std::io::Error),
     #[error(transparent)]
@@ -84,11 +88,27 @@ fn read_file_end(file: &mut File, num: u8) -> Result<(), SiaParseError> {
     match str::from_utf8(&end_file_tag) {
         Ok(s) => {
             if s != "EHSM" {
-                return Err(SiaParseError::EndTagS(s.into(), file.position()?, num));
+                let mut replaced_invalid_utf8 = String::new();
+                for c in s.chars() {
+                    if c.is_alphanumeric() {
+                        replaced_invalid_utf8.push(c);
+                    } else {
+                        replaced_invalid_utf8.push('.');
+                    }
+                }
+                return Err(SiaParseError::EndTagS(
+                    replaced_invalid_utf8.into(),
+                    file.position()?,
+                    num,
+                ));
             }
         }
         Err(_) => {
-            return Err(SiaParseError::EndTagB(end_file_tag, file.position()?, num));
+            return Err(SiaParseError::EndTagS(
+                "invalid utf-8".into(),
+                file.position()?,
+                num,
+            ));
         }
     }
     Ok(())
@@ -96,6 +116,7 @@ fn read_file_end(file: &mut File, num: u8) -> Result<(), SiaParseError> {
 
 pub fn from_path<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
     let mut file = File::open(&filepath)?;
+    println!("{:?}", filepath.as_ref());
     from_file(&mut file)
 }
 
@@ -108,12 +129,12 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
 
     model.name = file.read_string()?;
 
-    // So far these bytes have only been zero,
-    // changing them did nothing
+    // So far these bytes have only been zero, changing them did
+    // nothing
     file.skip(12);
 
-    // This might be some sort of scale, since it tends to resemble another bouding box value.
-    // Maybe sphere radius
+    // This might be some sort of scale, since it tends to resemble
+    // another bouding box value.  Maybe sphere radius
     model.who_knows = file.read_f32::<LittleEndian>()?;
 
     model.bounding_box = file.read_bounding_box();
@@ -175,8 +196,8 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
         for _ in 0..mesh.num_vertices {
             let pos = file.read_vector3();
 
-            // Think these are normals, when plotted out as vertices, they make a sphere.
-            // Which makes sense if it's normals
+            // Think these are normals, when plotted out as vertices,
+            // they make a sphere.  Which makes sense if it's normals
             // Actually, I'm second guessing myself
             let normal = file.read_vector3();
 
@@ -185,8 +206,9 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
                 _ => file.read_vector2(),
             };
 
-            // Thinking these are tangents or binormals, last one is always 1 or -1
-            // Some of these probably use lightmaps and have 2 or more uv channels.
+            // Thinking these are tangents or binormals, last one is
+            // always 1 or -1 Some of these probably use lightmaps and
+            // have 2 or more uv channels.
             match vertex_type {
                 3 => file.skip(0),
                 39 => file.skip(16),
@@ -232,8 +254,10 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
         }
     }
 
-    // These two numbers seems to be related to how many bytes there are to read after, maybe bones or something?
-    // But I've yet to find out exactly how they related to each other, it doesn't seem to be as simple as some_number * some other number
+    // These two numbers seems to be related to how many bytes there
+    // are to read after, maybe bones or something?  But I've yet to
+    // find out exactly how they related to each other, it doesn't
+    // seem to be as simple as some_number * some other number
     let some_number = file.read_u32::<LittleEndian>()?;
     let some_number2 = file.read_u32::<LittleEndian>()?;
     if some_number != 0 {
@@ -254,16 +278,50 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
                     let mesh_type: MeshType = file.read_u8().unwrap().into();
                     match mesh_type {
                         MeshType::VariableLength => {
-                            let _ = file.read_string();
+                            model.end_kind = Some(EndKind::MeshType(file.read_string()?));
                         }
                         MeshType::BodyPart => {
-                            let _ = file.read_string_with_length(4);
+                            model.end_kind =
+                                Some(EndKind::MeshType(file.read_string_with_length(4)?));
                         }
                         MeshType::RearCap => {
-                            let _ = file.read_string_with_length(8);
+                            model.end_kind =
+                                Some(EndKind::MeshType(file.read_string_with_length(8)?));
+                            let num_caps = file.read_u32::<LittleEndian>()?;
+                            for _ in 0..num_caps {
+                                let cap_type = file.read_u32::<LittleEndian>()?;
+                                file.skip(80); // This is probably position and such
+                                let entries_num = file.read_u32::<LittleEndian>()?;
+                                file.skip((entries_num * 48) as i64);
+                                match cap_type {
+                                    0 => {
+                                        file.read_string()?;
+                                        file.read_string()?;
+                                    }
+                                    2 => {
+                                        file.read_string()?;
+                                        file.read_u32::<LittleEndian>()?;
+                                    }
+                                    9 => {
+                                        file.read_string()?;
+                                        file.read_u32::<LittleEndian>()?;
+                                    }
+                                    _ => {
+                                        return Err(SiaParseError::InvalidCapType(
+                                            cap_type,
+                                            file.position()?,
+                                        ))
+                                    }
+                                }
+                            }
+
+                            read_file_end(file, num)?;
+
+                            return Ok(model);
                         }
                         MeshType::StadiumRoof => {
-                            let _ = file.read_string_with_length(12);
+                            model.end_kind =
+                                Some(EndKind::MeshType(file.read_string_with_length(12)?));
                         }
                         MeshType::Unknown => {
                             return Err(SiaParseError::UnknownType(
@@ -274,14 +332,10 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
                     }
                 }
                 "is_banner" => {
-                    // This should of course be a field on the model struct
-                    // then again, if this isn't a banner why whould this flag even be here?
-                    let _is_banner = file.read_u8().unwrap() != 0;
+                    model.end_kind = Some(EndKind::IsBanner(file.read_u8().unwrap() != 0));
                 }
                 "is_comp_banner" => {
-                    // This should of course be a field on the model struct
-                    // then again, if this isn't a banner why whould this flag even be here?
-                    let _is_comp_banner = file.read_u8().unwrap() != 0;
+                    model.end_kind = Some(EndKind::IsBanner(file.read_u8().unwrap() != 0));
                 }
                 _ => return Err(SiaParseError::UnknownType(0, file.position()?)),
             }

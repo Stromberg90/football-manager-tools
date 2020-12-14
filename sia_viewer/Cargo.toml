@@ -5,10 +5,10 @@ authors = ["Andreas Strømberg"]
 edition = "2018"
 
 [dependencies]
-image = "0.23.11"
-native-dialog = "0.4.3"
-kiss3d = "0.28"
-nalgebra = "0.23.0"
+image = "0.23.12"
+native-dialog = "0.4.4"
+kiss3d = "0.28.0"
+nalgebra = "0.23.1"
 nfd2 = "0.2.3"
 sia_parser = {path = "../sia_parser"}
 obj-exporter = "0.2.0"
