@@ -57,6 +57,10 @@ pub enum SiaParseError {
     UnknownVertexType(u32),
     #[error("{0} is a unkown type at file byte position: {1}")]
     UnknownType(u8, u64),
+    #[error("{0} is a unkown mesh type at file byte position: {1}")]
+    UnknownMeshType(u8, u64),
+    #[error("{0} is a unkown kind = {1}  type at file byte position: {2}")]
+    UnknownKindType(u8, String, u64),
     #[error("Expected EHSM, but found {0:#?} at file byte position: {1} num is {2}")]
     EndTagB([u8; 4], u64, u8),
     #[error("Expected EHSM, but found {0} at file byte position: {1} num is {2}")]
@@ -116,7 +120,6 @@ fn read_file_end(file: &mut File, num: u8) -> Result<(), SiaParseError> {
 
 pub fn from_path<P: AsRef<Path>>(filepath: P) -> Result<Model, SiaParseError> {
     let mut file = File::open(&filepath)?;
-    println!("{:?}", filepath.as_ref());
     from_file(&mut file)
 }
 
@@ -269,9 +272,15 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
 
     let num = file.read_u8()?;
 
+    if num == 75 {
+		file.skip(3);
+        file.skip((some_number2 * 56) as i64); // This seems wierd, and I wonder what data is hiding there.
+		file.skip(1);
+    }
+
     match num {
         0 => {}
-        42 => {
+        42 | 75 => {
             let kind = file.read_string_u8_len()?;
             match kind.as_ref() {
                 "mesh_type" => {
@@ -324,7 +333,7 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
                                 Some(EndKind::MeshType(file.read_string_with_length(12)?));
                         }
                         MeshType::Unknown => {
-                            return Err(SiaParseError::UnknownType(
+                            return Err(SiaParseError::UnknownMeshType(
                                 mesh_type as u8,
                                 file.position()?,
                             ))
@@ -337,7 +346,7 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
                 "is_comp_banner" => {
                     model.end_kind = Some(EndKind::IsBanner(file.read_u8().unwrap() != 0));
                 }
-                _ => return Err(SiaParseError::UnknownType(0, file.position()?)),
+                _ => return Err(SiaParseError::UnknownKindType(0, kind, file.position()?)),
             }
         }
         _ => {
