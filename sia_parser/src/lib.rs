@@ -31,7 +31,10 @@ enum MeshType {
     VariableLength,
     BodyPart,
     RearCap,
+	Glasses,
     StadiumRoof,
+	PlayerTunnel,
+	SideCap,
     Unknown,
 }
 
@@ -41,7 +44,10 @@ impl From<u8> for MeshType {
             8 => Self::VariableLength,
             88 => Self::BodyPart,
             152 => Self::RearCap,
+            136 => Self::Glasses,
             216 => Self::StadiumRoof,
+            232 => Self::PlayerTunnel,
+            248 => Self::SideCap,
             _ => Self::Unknown,
         }
     }
@@ -53,21 +59,21 @@ pub enum SiaParseError {
     Header(String),
     #[error("Face index larger than available vertices\nFace Index: {0}\nVertices Length: {1}\n at file byte position: {2}")]
     FaceVertexLenghtMismatch(u32, usize, u64),
-    #[error("{0} is a unkown vertex type")]
+    #[error("{0} is a unknown vertex type")]
     UnknownVertexType(u32),
-    #[error("{0} is a unkown type at file byte position: {1}")]
+    #[error("{0} is a unknown type at file byte position: {1}")]
     UnknownType(u8, u64),
-    #[error("{0} is a unkown mesh type at file byte position: {1}")]
+    #[error("{0} is a unknown mesh type at file byte position: {1}")]
     UnknownMeshType(u8, u64),
-    #[error("{0} is a unkown kind = {1}  type at file byte position: {2}")]
+    #[error("{0} is a unknown kind = {1} type at file byte position: {2}")]
     UnknownKindType(u8, String, u64),
     #[error("Expected EHSM, but found {0:#?} at file byte position: {1} num is {2}")]
     EndTagB([u8; 4], u64, u8),
     #[error("Expected EHSM, but found {0} at file byte position: {1} num is {2}")]
     EndTagS(String, u64, u8),
-    #[error("{0} is a unkown cap type at file byte position: {1}")]
+    #[error("{0} is a unknown cap type at file byte position: {1}")]
     InvalidCapType(u32, u64),
-    #[error("{0} is a unkown cap type id at file byte position: {1}")]
+    #[error("{0} is a unknown cap type id at file byte position: {1}")]
     InvalidCapTypeId(u32, u64),
     #[error(transparent)]
     File(#[from] std::io::Error),
@@ -214,6 +220,7 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
             // have 2 or more uv channels.
             match vertex_type {
                 3 => file.skip(0),
+                7 => file.skip(0),
                 39 => file.skip(16),
                 47 => file.skip(24), // This might be a second uv set, 24 bytes matches with another set of uv's
                 199 => file.skip(20),
@@ -273,9 +280,9 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
     let num = file.read_u8()?;
 
     if num == 75 {
-		file.skip(3);
+        file.skip(3);
         file.skip((some_number2 * 56) as i64); // This seems wierd, and I wonder what data is hiding there.
-		file.skip(1);
+        file.skip(1);
     }
 
     match num {
@@ -332,6 +339,18 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
                             model.end_kind =
                                 Some(EndKind::MeshType(file.read_string_with_length(12)?));
                         }
+                        MeshType::Glasses => {
+                            model.end_kind =
+                                Some(EndKind::MeshType(file.read_string_with_length(7)?));
+                        }
+                        MeshType::PlayerTunnel => {
+                            model.end_kind =
+                                Some(EndKind::MeshType(file.read_string_with_length(13)?));
+						}
+                        MeshType::SideCap => {
+                            model.end_kind =
+                                Some(EndKind::MeshType(file.read_string_with_length(14)?));
+						}
                         MeshType::Unknown => {
                             return Err(SiaParseError::UnknownMeshType(
                                 mesh_type as u8,
@@ -346,7 +365,7 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
                 "is_comp_banner" => {
                     model.end_kind = Some(EndKind::IsBanner(file.read_u8().unwrap() != 0));
                 }
-                _ => return Err(SiaParseError::UnknownKindType(0, kind, file.position()?)),
+                _ => return Err(SiaParseError::UnknownKindType(num, kind, file.position()?)),
             }
         }
         _ => {
