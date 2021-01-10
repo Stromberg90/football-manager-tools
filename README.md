@@ -27,14 +27,13 @@ Boardroom mesh from football manager rendered in blender.
 <img src="images/boardroom.png" />
 
 #### Notes
-- Only tested on Football Manager 2020
-- No texture importing support yet, uv's are supported though
+- Only tested on Football Manager 2021
 - Blender import is not functional
 
 #### Usage
 1. Clone this repository
-2. Install Football Manager 2020
-3. Install Football Manager 2020 Resource Archiver
+2. Install Football Manager 2021
+3. Install Football Manager 2021 Resource Archiver
 4. Using the Resource Archiver extract whichever archives you want to look at, the meshes are in simatchviewer and textures in simatchviewer-pc
 5. Working with the tools
 	- Standalone Viewer
@@ -48,7 +47,7 @@ Boardroom mesh from football manager rendered in blender.
 	- Blender
 		1. Open Blender
 		2. Go to Edit->Preferences->Addons then the install button on the upper right corner and select the io_scene_sia folder
-		3. Enabled addon and there should now be a `Football Manager 2020 Mesh (.sia)` entry under the import and export menu
+		3. Enabled addon and there should now be a `Football Manager 2021 Mesh (.sia)` entry under the import and export menu
 
 #### Contributing
 Help is appreciated in anyway, however here is some parts I've had on my mind.
