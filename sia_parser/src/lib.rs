@@ -279,14 +279,14 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
 
     let num = file.read_u8()?;
 
-    if num == 75 {
+    if num == 75 || num == 215 {
         file.skip(3);
         file.skip((some_number2 * 56) as i64); // This seems wierd, and I wonder what data is hiding there.
         file.skip(1);
     }
 
     match num {
-        0 => {}
+        0 | 215 => {}
         42 | 75 => {
             let kind = file.read_string_u8_len()?;
             match kind.as_ref() {
