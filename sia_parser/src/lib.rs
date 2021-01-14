@@ -31,10 +31,10 @@ enum MeshType {
     VariableLength,
     BodyPart,
     RearCap,
-	Glasses,
+    Glasses,
     StadiumRoof,
-	PlayerTunnel,
-	SideCap,
+    PlayerTunnel,
+    SideCap,
     Unknown,
 }
 
@@ -157,7 +157,7 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
         // Vertices
         mesh.num_vertices = file.read_u32::<LittleEndian>()?;
 
-        file.skip(4); // What could this be?, when changing them away from zero's it crashed I only tested once.
+        file.skip(4); // What could this be?, when changing them away from zero's it crashed, I only tested once.
 
         // Number of triangles when divided by 3
         mesh.num_triangles = file.read_u32::<LittleEndian>()? / 3;
@@ -346,11 +346,11 @@ pub fn from_file(file: &mut File) -> Result<Model, SiaParseError> {
                         MeshType::PlayerTunnel => {
                             model.end_kind =
                                 Some(EndKind::MeshType(file.read_string_with_length(13)?));
-						}
+                        }
                         MeshType::SideCap => {
                             model.end_kind =
                                 Some(EndKind::MeshType(file.read_string_with_length(14)?));
-						}
+                        }
                         MeshType::Unknown => {
                             return Err(SiaParseError::UnknownMeshType(
                                 mesh_type as u8,

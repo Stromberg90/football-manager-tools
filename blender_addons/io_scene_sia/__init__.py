@@ -76,12 +76,12 @@ classes = (
 
 def menu_func_export(self, context):
     self.layout.operator(ExportSIA.bl_idname,
-                         text="Football Manager 2020 Mesh (.sia)")
+                         text="Football Manager 2021 Mesh (.sia)")
 
 
 def menu_func_import(self, context):
     self.layout.operator(ImportSIA.bl_idname,
-                         text="Football Manager 2020 Mesh (.sia)")
+                         text="Football Manager 2021 Mesh (.sia)")
 
 
 def register():

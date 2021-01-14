@@ -5,7 +5,7 @@ authors = ["stromberg"]
 edition = "2018"
 
 [dependencies]
-byteorder = "1.3.4"
-nalgebra = "0.23.1"
-jwalk = "0.5.1"
-thiserror = "1.0.22"
+byteorder = "1.4.2"
+nalgebra = "0.24.0"
+jwalk = "0.6.0"
+thiserror = "1.0.23"
