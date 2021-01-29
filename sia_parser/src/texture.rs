@@ -1,3 +1,5 @@
+use pyo3::{types::PyUnicode, PyAny};
+
 #[derive(Debug)]
 pub enum TextureType {
     Albedo,
@@ -14,15 +16,6 @@ pub struct Texture {
     pub id: TextureType,
 }
 
-impl Texture {
-    pub(crate) fn new<S: Into<String>>(name: S, id: u8) -> Self {
-        Texture {
-            name: name.into(),
-            id: id.into(),
-        }
-    }
-}
-
 impl From<u8> for TextureType {
     fn from(id: u8) -> Self {
         match id {
@@ -33,6 +26,18 @@ impl From<u8> for TextureType {
             6 => TextureType::Lightmap,
             7 => TextureType::Flow,
             _ => panic!("Couldn't convert {} to TextureType", id),
+        }
+    }
+}
+
+impl From<&PyAny> for Texture {
+    fn from(item: &PyAny) -> Self {
+        let id: u8 = item.getattr("id").unwrap().extract().unwrap();
+        Texture {
+            name: PyUnicode::from_object(item.getattr("name").unwrap(), "utf-8", "")
+                .unwrap()
+                .to_string(),
+            id: id.into(),
         }
     }
 }

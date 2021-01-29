@@ -447,16 +447,3 @@ class Model:
 
 def load_sia_file(path):
     return Model.load(path)
-
-
-if __name__ == "__main__":
-    model = Model.load(
-        r"D:\football_manager_extracted\simatchviewer\stadiums\0-10000\concrete\top\top_no_tunnel.sia")
-    print(model.name)
-    print(model.bounding_box.__dict__)
-    for mesh in model.meshes.values():
-        print(mesh.__dict__)
-        for material in mesh.materials:
-            print(material.__dict__)
-            for texture in material.textures:
-                print(texture.__dict__)

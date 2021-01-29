@@ -1,20 +1,34 @@
+use pyo3::{
+    types::{self, PyUnicode},
+    PyAny,
+};
+
 use crate::texture::Texture;
 
 #[derive(Debug, Default)]
 pub struct Material {
     pub name: String,
     pub kind: String,
-    pub textures_num: u8,
     pub textures: Vec<Texture>,
 }
 
-impl Material {
-    pub fn new() -> Self {
+impl From<&PyAny> for Material {
+    fn from(item: &PyAny) -> Self {
         Material {
-            name: String::new(),
-            kind: String::new(),
-            textures_num: 0,
-            textures: Vec::new(),
+            name: PyUnicode::from_object(item.getattr("name").unwrap(), "utf-8", "")
+                .unwrap()
+                .to_string(),
+            kind: PyUnicode::from_object(item.getattr("kind").unwrap(), "utf-8", "")
+                .unwrap()
+                .to_string(),
+            textures: item
+                .getattr("textures")
+                .unwrap()
+                .downcast::<types::PyList>()
+                .unwrap()
+                .iter()
+                .map(|t| t.into())
+                .collect(),
         }
     }
 }

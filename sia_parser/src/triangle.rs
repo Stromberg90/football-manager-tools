@@ -1,19 +1,7 @@
-use std::cmp::max;
+use pyo3::PyAny;
 
 #[derive(Debug)]
 pub struct Triangle<T>(pub T, pub T, pub T);
-
-impl Triangle<u16> {
-    pub(crate) fn max(&self) -> u16 {
-        max(max(self.0, self.1), self.2)
-    }
-}
-
-impl Triangle<u32> {
-    pub(crate) fn max(&self) -> u32 {
-        max(max(self.0, self.1), self.2)
-    }
-}
 
 impl From<Triangle<u16>> for Triangle<u32> {
     fn from(triangle: Triangle<u16>) -> Self {
@@ -21,6 +9,16 @@ impl From<Triangle<u16>> for Triangle<u32> {
             0: triangle.0.into(),
             1: triangle.1.into(),
             2: triangle.2.into(),
+        }
+    }
+}
+
+impl From<&PyAny> for Triangle<u32> {
+    fn from(item: &PyAny) -> Self {
+        Triangle {
+            0: item.getattr("index1").unwrap().extract().unwrap(),
+            1: item.getattr("index2").unwrap().extract().unwrap(),
+            2: item.getattr("index3").unwrap().extract().unwrap(),
         }
     }
 }

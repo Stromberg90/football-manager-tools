@@ -1,5 +1,5 @@
 use kiss3d::light::Light;
-use kiss3d::resource::{Mesh, TextureManager, TextureWrapping};
+use kiss3d::resource::{Mesh, TextureManager};
 use kiss3d::{camera::ArcBall, event::WindowEvent, window::Window};
 use nalgebra::{Point2, Point3, Vector3};
 use native_dialog::*;
@@ -19,21 +19,21 @@ impl Options {
 }
 
 fn show_error_dialog(title: &str, text: &str) {
-    let _ = MessageAlert {
-        title,
-        text,
-        typ: MessageType::Error,
-    }
-    .show();
+    MessageDialog::new()
+        .set_title(title)
+        .set_text(text)
+        .set_type(MessageType::Error)
+        .show_alert()
+        .unwrap();
 }
 
 fn show_info_dialog(title: &str, text: &str) {
-    let _ = MessageAlert {
-        title,
-        text,
-        typ: MessageType::Info,
-    }
-    .show();
+    MessageDialog::new()
+        .set_title(title)
+        .set_text(text)
+        .set_type(MessageType::Info)
+        .show_alert()
+        .unwrap();
 }
 
 fn main() {
@@ -50,86 +50,85 @@ fn main() {
 
     let mut model = None;
 
-    match nfd2::open_file_dialog(None, None).expect("Couldn't open file") {
-        Response::Okay(filepath) => {
-            if filepath.extension().unwrap() == "sia" {
-                model = Some(sia_parser::from_path(filepath));
-                match model.as_ref().unwrap() {
-                    Ok(model) => {
-                        show_info_dialog(
-                            "Texture Folder",
-                            "Please select simatchviewer-pc folder for texture support",
-                        );
-                        if let Ok(Response::Okay(folder)) = nfd2::open_pick_folder(None) {
-                            texture_dir = Some(folder);
+    if let Response::Okay(filepath) =
+        nfd2::open_file_dialog(None, None).expect("Couldn't open file")
+    {
+        if filepath.extension().unwrap() == "sia" {
+            model = Some(sia_parser::from_path(filepath));
+            match model.as_ref().unwrap() {
+                Ok(model) => {
+                    show_info_dialog(
+                        "Texture Folder",
+                        "Please select simatchviewer-pc folder for texture support",
+                    );
+                    if let Ok(Response::Okay(folder)) = nfd2::open_pick_folder(None) {
+                        texture_dir = Some(folder);
+                    }
+
+                    for mesh in model.meshes.values().collect::<Vec<_>>() {
+                        let mut coords = Vec::new();
+                        let mut normals = Vec::new();
+                        let mut triangles: Vec<Point3<u16>> = Vec::new();
+                        let mut uvs = Vec::new();
+
+                        for vertex in &mesh.vertices {
+                            coords.push(Point3::from(vertex.position));
+                            normals.push(vertex.normals);
+                            uvs.push(Point2::from(vertex.uv));
                         }
 
-                        for mesh in model.meshes.values().collect::<Vec<_>>() {
-                            let mut coords = Vec::new();
-                            let mut normals = Vec::new();
-                            let mut triangles: Vec<Point3<u16>> = Vec::new();
-                            let mut uvs = Vec::new();
+                        for triangle in &mesh.triangles {
+                            triangles.push(Point3::new(
+                                triangle.0 as u16,
+                                triangle.1 as u16,
+                                triangle.2 as u16,
+                            ));
+                        }
 
-                            for vertex in &mesh.vertices {
-                                coords.push(Point3::from(vertex.position));
-                                normals.push(Vector3::from(vertex.normals));
-                                uvs.push(Point2::from(vertex.uv));
-                            }
+                        let mut c = window.add_mesh(
+                            Rc::new(RefCell::new(Mesh::new(
+                                coords,
+                                triangles,
+                                Some(normals),
+                                Some(uvs),
+                                false,
+                            ))),
+                            Vector3::new(1.0, 1.0, 1.0),
+                        );
+                        c.reorient(
+                            &Point3::new(0.0, 0.0, 0.0),
+                            &Point3::new(0.0, 1.0, 0.0),
+                            &Vector3::new(1.0, 0.0, 0.0),
+                        );
+                        c.enable_backface_culling(true);
 
-                            for triangle in &mesh.triangles {
-                                triangles.push(Point3::new(
-                                    triangle.0 as u16,
-                                    triangle.1 as u16,
-                                    triangle.2 as u16,
-                                ));
-                            }
+                        if let Some(texture_dir) = &texture_dir {
+                            if let Some(material) = mesh.materials.get(0) {
+                                if let Some(diffuse) = material.textures.get(0) {
+                                    let diffuse_relative_path = &diffuse.name;
+                                    let mut diffuse_absolute_path =
+                                        texture_dir.join(diffuse_relative_path);
+                                    diffuse_absolute_path.set_extension("dds");
 
-                            let mut c = window.add_mesh(
-                                Rc::new(RefCell::new(Mesh::new(
-                                    coords,
-                                    triangles,
-                                    Some(normals),
-                                    Some(uvs),
-                                    false,
-                                ))),
-                                Vector3::new(1.0, 1.0, 1.0),
-                            );
-                            c.reorient(
-                                &Point3::new(0.0, 0.0, 0.0),
-                                &Point3::new(0.0, 1.0, 0.0),
-                                &Vector3::new(1.0, 0.0, 0.0),
-                            );
-                            c.enable_backface_culling(true);
+                                    if let Ok(texture) = image::open(diffuse_absolute_path) {
+                                        let texture_resource = texture_manager
+                                            .add_image(texture, diffuse_relative_path);
 
-                            if let Some(texture_dir) = &texture_dir {
-                                if let Some(material) = mesh.materials.get(0) {
-                                    if let Some(diffuse) = material.textures.get(0) {
-                                        let diffuse_relative_path = &diffuse.name;
-                                        let mut diffuse_absolute_path =
-                                            texture_dir.join(diffuse_relative_path);
-                                        diffuse_absolute_path.set_extension("dds");
-
-                                        if let Ok(texture) = image::open(diffuse_absolute_path) {
-                                            let texture_resource = texture_manager
-                                                .add_image(texture, diffuse_relative_path);
-
-                                            c.set_texture(texture_resource);
-                                        }
+                                        c.set_texture(texture_resource);
                                     }
                                 }
                             }
-
-                            scene_nodes.push(c);
                         }
+
+                        scene_nodes.push(c);
                     }
-                    Err(e) => {
-                        eprintln!("Error: {}", e);
-                        std::process::exit(1)
-                    }
+                }
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    std::process::exit(1)
                 }
             }
         }
-        _ => {}
     }
 
     while window.render_with_camera(&mut camera) {

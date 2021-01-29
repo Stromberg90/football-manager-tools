@@ -1,3 +1,5 @@
+use pyo3::{types::PyFloat, PyAny};
+
 #[derive(Debug, Default, Clone)]
 pub struct BoundingBox {
     pub max_x: f32,
@@ -18,5 +20,48 @@ impl BoundingBox {
             min_y: 0f32,
             min_z: 0f32,
         }
+    }
+}
+
+impl From<&PyAny> for BoundingBox {
+    fn from(item: &PyAny) -> Self {
+        let mut bounding_box = BoundingBox::new();
+        bounding_box.max_x = item
+            .getattr("max_x")
+            .unwrap()
+            .cast_as::<PyFloat>()
+            .unwrap()
+            .value() as f32;
+        bounding_box.max_y = item
+            .getattr("max_y")
+            .unwrap()
+            .cast_as::<PyFloat>()
+            .unwrap()
+            .value() as f32;
+        bounding_box.max_z = item
+            .getattr("max_z")
+            .unwrap()
+            .cast_as::<PyFloat>()
+            .unwrap()
+            .value() as f32;
+        bounding_box.min_x = item
+            .getattr("min_x")
+            .unwrap()
+            .cast_as::<PyFloat>()
+            .unwrap()
+            .value() as f32;
+        bounding_box.min_y = item
+            .getattr("min_y")
+            .unwrap()
+            .cast_as::<PyFloat>()
+            .unwrap()
+            .value() as f32;
+        bounding_box.min_z = item
+            .getattr("min_z")
+            .unwrap()
+            .cast_as::<PyFloat>()
+            .unwrap()
+            .value() as f32;
+        bounding_box
     }
 }
