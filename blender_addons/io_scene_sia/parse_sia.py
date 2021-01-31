@@ -55,9 +55,9 @@ class Vector3:
 
 class Vertex:
     def __init__(self, position=Vector3(), normal=Vector3(), uv=Vector2()) -> None:
-        self.position = position
-        self.normal = normal
-        self.uv = uv
+        self.position: Vector3 = position
+        self.normal: Vector3 = normal
+        self.uv: Vector2 = uv
 
 
 class Triangle:
@@ -118,16 +118,16 @@ def read_vector3(file: BufferedReader) -> Vector3:
 
 def read_string(file: BufferedReader) -> str:
     length = read_u32(file)
-    return unpack('<{}s'.format(length), file.read(length))[0]
+    return unpack('<{}s'.format(length), file.read(length))[0].decode('utf-8', "replace")
 
 
 def read_string_with_length(file: BufferedReader, length: int) -> str:
-    return unpack('<{}s'.format(length), file.read(length))[0]
+    return unpack('<{}s'.format(length), file.read(length))[0].decode('utf-8', "replace")
 
 
 def read_string_u8_len(file: BufferedReader) -> str:
     length = read_u8(file)
-    return unpack('<{}s'.format(length), file.read(length))[0]
+    return unpack('<{}s'.format(length), file.read(length))[0].decode('utf-8', "replace")
 
 
 def read_triangle_u32(file: BufferedReader) -> Triangle:
@@ -299,7 +299,10 @@ class Model:
 
             vertices_total_num = read_u32(sia_file)
 
+            # Might be a 16 bit value, not seen it use any more bits than 10.
+            # Could be a bit field, not sure, but makes more sense than magic number
             vertex_type = read_u32(sia_file)
+            # print("{} : {}".format(vertex_type, format(vertex_type, '#034b')))
 
             for i in range(meshes_num):
                 mesh = model.meshes.get(i)
@@ -367,6 +370,7 @@ class Model:
             some_number = read_u32(sia_file)
             some_number2 = read_u32(sia_file)
 
+            # Could be a bit field, not sure, but makes more sense than magic number
             num = read_u8(sia_file)
 
             if num == 75 or num == 215:
@@ -443,7 +447,3 @@ class Model:
             model.read_file_end(sia_file, num)
 
             return model
-
-
-def load_sia_file(path):
-    return Model.load(path)

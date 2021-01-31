@@ -22,11 +22,12 @@ from bpy_extras.io_utils import (
 bl_info = {
     "name": "SIA Format",
     "author": "Andreas Strømberg",
-    "version": (1, 0, 0),
-    "blender": (2, 83, 0),
+    "version": (0, 1, 0),
+    "blender": (2, 91, 2),
     "location": "File > Import-Export",
     "description": "Import-Export SIA",
     "category": "Import-Export",
+    "tracker_url": "https://github.com/Stromberg90/football-manager-tools/issues",
 }
 
 
