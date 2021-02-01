@@ -23,6 +23,9 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
+      - name: Create Date Variable
+        run: echo "DATE=output-$(date "+%d%M")" >> $GITHUB_ENV
+
       - name: Create Archive
         run: |
           cd blender_addons/io_scene_sia
@@ -34,8 +37,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.sha }}
-          release_name: Release ${{ github.sha }}
+          tag_name: ${{ env.DATE }}
+          release_name: Release ${{ env.DATE }}
           draft: false
           prerelease: false
 
