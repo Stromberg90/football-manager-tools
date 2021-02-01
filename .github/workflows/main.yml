@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Create Date Variable
-        run: echo "DATE=$(date "+%d%M")" >> $GITHUB_ENV
+        run: echo "DATE=$(date "+%Y%m%d%H%M")" >> $GITHUB_ENV
 
       - name: Create Archive
         run: |
