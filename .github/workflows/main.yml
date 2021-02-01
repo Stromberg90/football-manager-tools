@@ -45,6 +45,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./blender_addon.zip
+          asset_path: ./blender_addons/blender_addon.zip
           asset_name: blender_addon.zip
           asset_content_type: application/zip
