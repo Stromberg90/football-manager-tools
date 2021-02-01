@@ -25,8 +25,8 @@ jobs:
 
       - name: Create Archive
         run: |
-          cd blender_addons
-          zip -r blender_addon.zip io_scene_sia
+          cd blender_addons/io_scene_sia
+          zip -r blender_addon.zip *
 
       - name: Create Release
         id: create_release
@@ -34,8 +34,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${GITHUB_SHA}
-          release_name: Release ${GITHUB_SHA}
+          tag_name: ${{GITHUB_SHA}}
+          release_name: Release ${{GITHUB_SHA}}
           draft: false
           prerelease: false
 
