@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Create Archive
-        run: zip -r blender_addon.zip ./blender_addons/io_scene_sia
+        run: zip -r blender_addon.zip ./blender_addons/io_scene_sia/
 
       - name: Create Release
         id: create_release
@@ -33,7 +33,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          release_name: Release
           draft: false
           prerelease: false
 
