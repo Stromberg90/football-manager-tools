@@ -8,7 +8,6 @@ Set of tools for working with Football Managers 3D mesh format(.sia)
 	- Import .sia
 	- Export .sia
 - Rust wrapper for parsing .sia files
-- 
 - #### Standalone Mesh(.sia) Viewer
 
 Mesh             |  Wireframe
