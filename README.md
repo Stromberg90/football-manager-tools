@@ -7,7 +7,8 @@ Set of tools for working with Football Managers 3D mesh format(.sia)
 - Blender Addons
 	- Import .sia
 	- Export .sia
-- Rust crate for parsing .sia files
+- Rust wrapper for parsing .sia files
+- 
 - #### Standalone Mesh(.sia) Viewer
 
 Mesh             |  Wireframe
@@ -28,10 +29,9 @@ Boardroom mesh from football manager rendered in blender.
 
 #### Notes
 - Only tested on Football Manager 2021
-- Blender import is not functional
 
 #### Usage
-1. Clone this repository
+1. Clone this repository, or if you only need the blender addon download the latest zip from the release section: https://github.com/Stromberg90/football-manager-tools/releases
 2. Install Football Manager 2021
 3. Install Football Manager 2021 Resource Archiver
 4. Using the Resource Archiver extract whichever archives you want to look at, the meshes are in simatchviewer and textures in simatchviewer-pc
@@ -46,7 +46,7 @@ Boardroom mesh from football manager rendered in blender.
 			- Ctrl-S saves a obj with the mesh name in the folder next to the excecutable
 	- Blender
 		1. Open Blender
-		2. Go to Edit->Preferences->Addons then the install button on the upper right corner and select the io_scene_sia folder
+		2. Go to Edit->Preferences->Addons then the install button on the upper right corner and select the io_scene_sia folder or zip if you downloaded it.
 		3. Enabled addon and there should now be a `Football Manager 2021 Mesh (.sia)` entry under the import and export menu
 
 #### Contributing
