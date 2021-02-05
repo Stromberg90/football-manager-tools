@@ -118,16 +118,16 @@ def read_vector3(file: BufferedReader) -> Vector3:
 
 def read_string(file: BufferedReader) -> str:
     length = read_u32(file)
-    return unpack('<{}s'.format(length), file.read(length))[0].decode('utf-8', "replace")
+    return unpack('<{}s'.format(length), file.read(length))[0]
 
 
 def read_string_with_length(file: BufferedReader, length: int) -> str:
-    return unpack('<{}s'.format(length), file.read(length))[0].decode('utf-8', "replace")
+    return unpack('<{}s'.format(length), file.read(length))[0]
 
 
 def read_string_u8_len(file: BufferedReader) -> str:
     length = read_u8(file)
-    return unpack('<{}s'.format(length), file.read(length))[0].decode('utf-8', "replace")
+    return unpack('<{}s'.format(length), file.read(length))[0]
 
 
 def read_triangle_u32(file: BufferedReader) -> Triangle:
@@ -303,6 +303,8 @@ class Model:
             # Could be a bit field, not sure, but makes more sense than magic number
             vertex_type = read_u32(sia_file)
             # print("{} : {}".format(vertex_type, format(vertex_type, '#034b')))
+            print("{},{},{}".format(vertex_type, format(
+                vertex_type, '#012b'), os.path.splitext(os.path.basename(path))[0]))
 
             for i in range(meshes_num):
                 mesh = model.meshes.get(i)
@@ -447,3 +449,7 @@ class Model:
             model.read_file_end(sia_file, num)
 
             return model
+
+
+def load_sia_file(path):
+    return Model.load(path)
