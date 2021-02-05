@@ -1,0 +1,53 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [ master ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - name: Create Date Variable
+        run: echo "DATE=$(date "+%Y%m%d%H%M")" >> $GITHUB_ENV
+
+      - name: Create Archive
+        run: |
+          cd blender_addons/io_scene_sia
+          zip -r blender_addon.zip *
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.DATE }}
+          release_name: Release ${{ env.DATE }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Addon Zip
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./blender_addons/io_scene_sia/blender_addon.zip
+          asset_name: blender_addon.zip
+          asset_content_type: application/zip
