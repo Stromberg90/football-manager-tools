@@ -277,12 +277,12 @@ class Model:
 
             for i in range(meshes_num):
                 mesh = model.meshes.get(i)
-                material_kind = read_string(sia_file)
+                material_name = read_string(sia_file)
                 materials_num = read_u8(sia_file)
                 for _ in range(materials_num):
                     material = Material()
-                    material.kind = material_kind
-                    material.name = read_string(sia_file)
+                    material.kind = read_string(sia_file)
+                    material.name = material_name
                     texture_num = read_u8(sia_file)
                     for _ in range(texture_num):
                         texture = Texture()

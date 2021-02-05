@@ -16,11 +16,20 @@ def load(context, filepath):
     root = bpy.data.objects.new(sia_file.name, None)
     collection.objects.link(root)
     for (i, mesh) in sia_file.meshes.items():
+        for material in mesh.materials:
+            print("Name: ", material.name)
+            print("Kind: ", material.kind)
+            for texture in material.textures:
+                print(" Name: ", texture.name)
+                print(" ID: ", texture.id)
+
         me = bpy.data.meshes.new("{}_mesh_{}".format(sia_file.name.lower(), i))
         bm = bmesh.new()
+        uvs = []
         for v in mesh.vertices:
             bm.verts.new((v.position.x, v.position.y,
                           v.position.z))
+            uvs.append((v.uv.x, v.uv.y))
         bm.verts.ensure_lookup_table()
         for f in mesh.triangles:
             bm.faces.new(
@@ -28,6 +37,11 @@ def load(context, filepath):
         bm.faces.ensure_lookup_table()
 
         bm.to_mesh(me)
+        me.polygons.foreach_set("use_smooth", [True] * len(me.polygons))
+        me.uv_layers.new(do_init=False)
+        for i in range(len(uvs)):
+            uv_loop = me.uv_layers[0].data[i]
+            uv_loop.uv = uvs[i]
 
         me.validate(clean_customdata=False)
         me.update(calc_edges=False, calc_edges_loose=False)
