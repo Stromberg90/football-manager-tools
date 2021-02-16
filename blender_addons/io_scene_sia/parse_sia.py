@@ -5,6 +5,29 @@ import os
 from typing import Optional
 
 
+class Bitfield():
+    def __init__(self):
+        self.__bits = 0
+
+    @staticmethod
+    def from_number(number):
+        bitfield = Bitfield()
+        bitfield.__bits = number
+        return bitfield
+
+    def number(self):
+        return self.__bits
+
+    def __getitem__(self, key: int):
+        return (self.__bits & 1 << key) != 0
+
+    def __setitem__(self, key: int, value: bool):
+        if value:
+            self.__bits |= 1 << key
+        else:
+            self.__bits != 1 << key
+
+
 class SiaParseError(Exception):
     pass
 
@@ -299,52 +322,57 @@ class Model:
 
             vertices_total_num = read_u32(sia_file)
 
-            # Might be a 16 bit value, not seen it use any more bits than 10.
-            # Could be a bit field, not sure, but makes more sense than magic number
-            vertex_type = read_u32(sia_file)
-            # print("{} : {}".format(vertex_type, format(vertex_type, '#034b')))
-            print("{},{},{}".format(vertex_type, format(
-                vertex_type, '#012b'), os.path.splitext(os.path.basename(path))[0]))
+            vertex_type = Bitfield.from_number(read_u32(sia_file))
+            # Result so far:
+            # 1 and 2 Always checked, normal and position I think
+            # 3 I think this is uv, also always checked
+            # 4 8 bits
+            # 5 8 bits
+            # 6 16 bits
+            # 7 and 8 Unsure, but 12 or 8 I think for either one
+            # 9 20 bits
+            # 10 4 bits, seems strange
 
             for i in range(meshes_num):
                 mesh = model.meshes.get(i)
 
                 for _ in range(mesh.vertices_num):
-                    position = read_vector3(sia_file)
-                    normal = read_vector3(sia_file)
-
-                    uv = None
-                    if vertex_type == 3:
-                        uv = Vector2(0, 0)
+                    position, normal, uv = (None, None, None)
+                    if vertex_type[0]:  # This and the normal might be flipped
+                        position = read_vector3(sia_file)
                     else:
+                        raise SiaParseError("Missing position flag")
+
+                    if vertex_type[1]:
+                        normal = read_vector3(sia_file)
+                    else:
+                        raise SiaParseError("Missing normal flag")
+
+                    if vertex_type[2]:  # First uv set flag
                         uv = read_vector2(sia_file)
-
-                    if vertex_type == 3 or vertex_type == 7:
-                        skip(sia_file, 0)
-                    elif vertex_type == 39:
-                        skip(sia_file, 16)
-                    elif vertex_type == 47:
-                        # This might be a second uv set, 24 bytes matches with another set of uv's
-                        skip(sia_file, 24)
-                    elif vertex_type == 199:
-                        skip(sia_file, 20)
-                    elif vertex_type == 231:
-                        skip(sia_file, 36)
-                    elif vertex_type == 239:
-                        skip(sia_file, 44)
-                    elif vertex_type == 487:
-                        skip(sia_file, 56)
-                    elif vertex_type == 495:
-                        skip(sia_file, 64)
-                    elif vertex_type == 551:
-                        skip(sia_file, 20)
-                    elif vertex_type == 559:
-                        skip(sia_file, 28)
-                    elif vertex_type == 575:
-                        skip(sia_file, 36)
                     else:
-                        raise SiaParseError(
-                            "{} is a unknown vertex type".format(vertex_type))
+                        uv = Vector2(0, 0)
+
+                    if vertex_type[3]:
+                        skip(sia_file, 8)
+
+                    if vertex_type[4]:
+                        skip(sia_file, 8)
+
+                    if vertex_type[5]:
+                        skip(sia_file, 16)
+
+                    if vertex_type[6]:
+                        skip(sia_file, 8)
+                        # |---> These two are probably not correct
+                    if vertex_type[7]:
+                        skip(sia_file, 12)
+
+                    if vertex_type[8]:
+                        skip(sia_file, 20)
+
+                    if vertex_type[9]:
+                        skip(sia_file, 4)
 
                     mesh.vertices.append(Vertex(position, normal, uv))
 
