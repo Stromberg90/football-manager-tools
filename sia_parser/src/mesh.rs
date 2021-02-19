@@ -2,7 +2,7 @@ use pyo3::{types, PyAny};
 
 use crate::{material::Material, triangle::Triangle, vertex::Vertex};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Mesh {
     pub num_vertices: u32,
     pub num_triangles: u32,

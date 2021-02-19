@@ -5,7 +5,7 @@ use pyo3::{
 
 use crate::texture::Texture;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Material {
     pub name: String,
     pub kind: String,

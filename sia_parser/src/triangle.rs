@@ -1,6 +1,6 @@
 use pyo3::PyAny;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Triangle<T>(pub T, pub T, pub T);
 
 impl From<Triangle<u16>> for Triangle<u32> {

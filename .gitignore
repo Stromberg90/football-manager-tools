@@ -9,3 +9,4 @@ __pycache__
 sia_parser/src/main.rs
 sia_viewer/objs/*
 sia_parser/tests/*
+test_suite/*

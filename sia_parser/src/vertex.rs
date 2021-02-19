@@ -1,7 +1,7 @@
 use nalgebra::{Vector2, Vector3};
 use pyo3::PyAny;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Vertex {
     pub position: Vector3<f32>,
     pub uv: Vector2<f32>,

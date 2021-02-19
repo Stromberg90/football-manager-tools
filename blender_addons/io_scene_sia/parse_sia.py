@@ -236,6 +236,7 @@ class Model:
     def __init__(self):
         self.name: str
         self.bounding_box: BoundingBox
+        self.settings: Bitfield
         self.meshes: dict[int, Mesh] = {}
         self.end_kind: Optional[EndKind]
 
@@ -322,7 +323,9 @@ class Model:
 
             vertices_total_num = read_u32(sia_file)
 
-            vertex_type = Bitfield.from_number(read_u32(sia_file))
+            # There seems to be only 10 bits checked, so maybe it's a u16 instead,
+            # and the other 16 bits are something else
+            model.settings = Bitfield.from_number(read_u32(sia_file))
             # Result so far:
             # 1 and 2 Always checked, normal and position I think
             # 3 I think this is uv, also always checked
@@ -338,40 +341,40 @@ class Model:
 
                 for _ in range(mesh.vertices_num):
                     position, normal, uv = (None, None, None)
-                    if vertex_type[0]:  # This and the normal might be flipped
+                    if model.settings[0]:  # This and the normal might be flipped
                         position = read_vector3(sia_file)
                     else:
                         raise SiaParseError("Missing position flag")
 
-                    if vertex_type[1]:
+                    if model.settings[1]:
                         normal = read_vector3(sia_file)
                     else:
                         raise SiaParseError("Missing normal flag")
 
-                    if vertex_type[2]:  # First uv set flag
+                    if model.settings[2]:  # First uv set flag
                         uv = read_vector2(sia_file)
                     else:
                         uv = Vector2(0, 0)
 
-                    if vertex_type[3]:
+                    if model.settings[3]:
                         skip(sia_file, 8)
 
-                    if vertex_type[4]:
+                    if model.settings[4]:
                         skip(sia_file, 8)
 
-                    if vertex_type[5]:
+                    if model.settings[5]:
                         skip(sia_file, 16)
 
-                    if vertex_type[6]:
+                    if model.settings[6]:
                         skip(sia_file, 8)
                         # |---> These two are probably not correct
-                    if vertex_type[7]:
+                    if model.settings[7]:
                         skip(sia_file, 12)
 
-                    if vertex_type[8]:
+                    if model.settings[8]:
                         skip(sia_file, 20)
 
-                    if vertex_type[9]:
+                    if model.settings[9]:
                         skip(sia_file, 4)
 
                     mesh.vertices.append(Vertex(position, normal, uv))

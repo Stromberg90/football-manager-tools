@@ -1,6 +1,6 @@
 use pyo3::{types::PyUnicode, PyAny};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TextureType {
     Albedo,
     Normal,
@@ -10,7 +10,7 @@ pub enum TextureType {
     Flow,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Texture {
     pub name: String,
     pub id: TextureType,

@@ -1,6 +1,6 @@
 use pyo3::{types::PyFloat, PyAny};
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct BoundingBox {
     pub max_x: f32,
     pub max_y: f32,
