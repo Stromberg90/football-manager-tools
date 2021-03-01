@@ -141,6 +141,8 @@ def read_vector3(file: BufferedReader) -> Vector3:
 
 def read_string(file: BufferedReader) -> str:
     length = read_u32(file)
+    if length == 0:
+        return ""
     return unpack('<{}s'.format(length), file.read(length))[0]
 
 
@@ -476,7 +478,28 @@ class Model:
                 raise SiaParseError("{} is a unknown type at file byte position: {}".format(
                     num, sia_file.tell()))
 
-            skip(sia_file, 4)
+            instances = read_u32(sia_file)
+            for i in range(0, instances):
+                instance_type = read_u32(sia_file)
+                # unknown or instance, could be a bitflag or similar
+                if instance_type == 1 or instance_type == 2 or instance_type == 3:
+                    skip(sia_file, 132)
+                elif instance_type == 9:
+                    skip(sia_file, 80)
+                    num1 = read_u32(sia_file)
+                    for _ in range(0, num1):
+                        skip(sia_file, 48)
+                elif instance_type == 0:
+                    skip(sia_file, 80)
+                    num1 = read_u32(sia_file)
+                    for _ in range(0, num1):
+                        skip(sia_file, 48)
+                else:
+                    raise SiaParseError("{} is a unknown instance_type at file byte position: {}".format(
+                        instance_type, sia_file.tell()))
+                name = read_string(sia_file)
+                path = read_string(sia_file)
+
             model.read_file_end(sia_file, num)
 
             return model

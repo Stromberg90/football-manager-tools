@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 byteorder = "1.4.2"
-nalgebra = "0.24.0"
+nalgebra = "0.24.1"
 jwalk = "0.6.0"
-thiserror = "1.0.23"
-pyo3 = "0.13.1"
+thiserror = "1.0.24"
+pyo3 = "0.13.2"
