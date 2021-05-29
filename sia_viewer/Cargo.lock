@@ -892,7 +892,7 @@ dependencies = [
  "image",
  "instant",
  "libc",
- "nalgebra",
+ "nalgebra 0.24.1",
  "ncollide3d",
  "num-traits",
  "rusttype 0.8.3",
@@ -974,6 +974,15 @@ name = "matrixmultiply"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "916806ba0031cd542105d916a97c8572e1fa6dd79c9c51e7eb43a09ec2dd84c1"
+dependencies = [
+ "rawpointer",
+]
+
+[[package]]
+name = "matrixmultiply"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a8a15b776d9dfaecd44b03c5828c2199cddff5247215858aac14624f8d6b741"
 dependencies = [
  "rawpointer",
 ]
@@ -1087,13 +1096,30 @@ checksum = "1a9002895a0de45e3cde58b36d0cf2f83249e7dba4a43ee64dafbf01bfd464ff"
 dependencies = [
  "approx 0.4.0",
  "generic-array",
- "matrixmultiply",
+ "matrixmultiply 0.2.4",
  "num-complex",
  "num-rational",
  "num-traits",
  "rand",
  "rand_distr",
- "simba",
+ "simba 0.3.1",
+ "typenum",
+]
+
+[[package]]
+name = "nalgebra"
+version = "0.25.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c70c9e8c5f213c8e93fc8c112ade4edd3ee62062fb897776c23dcebac7932900"
+dependencies = [
+ "approx 0.4.0",
+ "generic-array",
+ "matrixmultiply 0.3.1",
+ "num-complex",
+ "num-rational",
+ "num-traits",
+ "serde",
+ "simba 0.4.0",
  "typenum",
 ]
 
@@ -1125,10 +1151,10 @@ dependencies = [
  "bitflags",
  "downcast-rs",
  "either",
- "nalgebra",
+ "nalgebra 0.24.1",
  "num-traits",
  "petgraph",
- "simba",
+ "simba 0.3.1",
  "slab",
  "slotmap",
  "smallvec",
@@ -1722,6 +1748,9 @@ name = "serde"
 version = "1.0.123"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92d5161132722baa40d802cc70b15262b98258453e85e5d1d365c757c73869ae"
+dependencies = [
+ "serde_derive",
+]
 
 [[package]]
 name = "serde_derive"
@@ -1750,7 +1779,7 @@ version = "0.1.0"
 dependencies = [
  "byteorder",
  "jwalk",
- "nalgebra",
+ "nalgebra 0.25.4",
  "pyo3",
  "thiserror",
 ]
@@ -1761,7 +1790,7 @@ version = "0.1.0"
 dependencies = [
  "image",
  "kiss3d",
- "nalgebra",
+ "nalgebra 0.24.1",
  "native-dialog",
  "nfd2",
  "obj-exporter",
@@ -1773,6 +1802,18 @@ name = "simba"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17bfe642b1728a6e89137ad428ef5d4738eca4efaba9590f9e110b8944028621"
+dependencies = [
+ "approx 0.4.0",
+ "num-complex",
+ "num-traits",
+ "paste 1.0.4",
+]
+
+[[package]]
+name = "simba"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5132a955559188f3d13c9ba831e77c802ddc8782783f050ed0c52f5988b95f4c"
 dependencies = [
  "approx 0.4.0",
  "num-complex",

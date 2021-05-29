@@ -3,6 +3,7 @@ from io import BufferedReader
 from struct import unpack
 import os
 from typing import Optional
+from pprint import pprint
 
 
 class Bitfield():
@@ -10,7 +11,7 @@ class Bitfield():
         self.__bits = 0
 
     @staticmethod
-    def from_number(number):
+    def from_number(number: int):
         bitfield = Bitfield()
         bitfield.__bits = number
         return bitfield
@@ -42,7 +43,7 @@ class BoundingBox:
         self.min_z = float
 
     @staticmethod
-    def read_from_file(sia_file):
+    def read_from_file(sia_file: BufferedReader):
         bounding_box = BoundingBox()
         bounding_box.min_x = read_f32(sia_file)
         bounding_box.min_y = read_f32(sia_file)
@@ -64,20 +65,20 @@ class Mesh:
 
 
 class Vector2:
-    def __init__(self, x=0.0, y=0.0) -> None:
+    def __init__(self, x: float = 0.0, y: float = 0.0) -> None:
         self.x = x
         self.y = y
 
 
 class Vector3:
-    def __init__(self, x=0.0, y=0.0, z=0.0) -> None:
+    def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0) -> None:
         self.x = x
         self.y = y
         self.z = z
 
 
 class Vertex:
-    def __init__(self, position=Vector3(), normal=Vector3(), uv=Vector2()) -> None:
+    def __init__(self, position: Vector3 = Vector3(), normal: Vector3 = Vector3(), uv: Vector2 = Vector2()) -> None:
         self.position: Vector3 = position
         self.normal: Vector3 = normal
         self.uv: Vector2 = uv
@@ -182,7 +183,7 @@ class MeshType(Enum):
     Unknown = 0
 
     @staticmethod
-    def from_u8(u8):
+    def from_u8(u8: int):
         if u8 == 8:
             return MeshType.VariableLength
         elif u8 == 88:
@@ -213,21 +214,21 @@ class EndKind():
         self.value = None
 
     @staticmethod
-    def MeshType(value):
+    def MeshType(value: str):
         result = EndKind()
         result.type = EndKindType.MeshType
         result.value = value
         return result
 
     @staticmethod
-    def IsBanner(value):
+    def IsBanner(value: int):
         result = EndKind()
         result.type = EndKindType.IsBanner
         result.value = value
         return result
 
     @staticmethod
-    def IsCompBanner(value):
+    def IsCompBanner(value: int):
         result = EndKind()
         result.type = EndKindType.IsCompBanner
         result.value = value
@@ -258,7 +259,7 @@ class Model:
                     end, sia_file.tell(), num))
 
     @staticmethod
-    def load(path):
+    def load(path: str):
         if not os.path.exists(path) or os.path.splitext(path)[1] != ".sia":
             raise SiaParseError(
                 "{} does not exist or is not a valid sia file".format(path))
@@ -303,6 +304,7 @@ class Model:
 
             for i in range(meshes_num):
                 mesh = model.meshes.get(i)
+                assert(mesh is not None)
                 material_name = read_string(sia_file)
                 materials_num = read_u8(sia_file)
                 for _ in range(materials_num):
@@ -340,6 +342,7 @@ class Model:
 
             for i in range(meshes_num):
                 mesh = model.meshes.get(i)
+                assert(mesh is not None)
 
                 for _ in range(mesh.vertices_num):
                     position, normal, uv = (None, None, None)
@@ -385,6 +388,7 @@ class Model:
 
             for i in range(meshes_num):
                 mesh = model.meshes.get(i)
+                assert(mesh is not None)
                 for _ in range(mesh.triangles_num):
                     triangle: Triangle
                     if vertices_total_num > 65535:
@@ -436,6 +440,7 @@ class Model:
                             # This is probably position and such
                             entries_num = read_u32(sia_file)
                             skip(sia_file, int(entries_num * 48))
+			    # TODO: Why are these are the same?
                             if cap_type == 0:
                                 read_string(sia_file)
                                 read_string(sia_file)
@@ -443,6 +448,9 @@ class Model:
                                 read_string(sia_file)
                                 read_u32(sia_file)
                             elif cap_type == 9:
+                                read_string(sia_file)
+                                read_u32(sia_file)
+                            elif cap_type == 10:
                                 read_string(sia_file)
                                 read_u32(sia_file)
                             else:
@@ -479,6 +487,7 @@ class Model:
                     num, sia_file.tell()))
 
             instances = read_u32(sia_file)
+            print("instances", instances, " at ", sia_file.tell())
             for i in range(0, instances):
                 instance_type = read_u32(sia_file)
                 # unknown or instance, could be a bitflag or similar
@@ -487,6 +496,8 @@ class Model:
                 elif instance_type == 9:
                     skip(sia_file, 80)
                     num1 = read_u32(sia_file)
+                    print("num1: ", num1)
+                    print("Type 9 Skip at:", sia_file.tell())
                     for _ in range(0, num1):
                         skip(sia_file, 48)
                 elif instance_type == 0:
@@ -495,15 +506,23 @@ class Model:
                     for _ in range(0, num1):
                         skip(sia_file, 48)
                 else:
+                    print("mesh_type: ", mesh_type)
+                    print("model.end_kind.value: ", model.end_kind.value)
                     raise SiaParseError("{} is a unknown instance_type at file byte position: {}".format(
                         instance_type, sia_file.tell()))
+                # print(instance_type)
+                # Could it be that only some of them have name and paths, for type 9 I skip over some stuff
+                print("before name:", sia_file.tell())
+                pprint(locals())
                 name = read_string(sia_file)
+                print(name)
                 path = read_string(sia_file)
+                print(path)
 
             model.read_file_end(sia_file, num)
 
             return model
 
 
-def load_sia_file(path):
+def load_sia_file(path: str):
     return Model.load(path)

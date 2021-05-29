@@ -1,3 +1,5 @@
+from io import BufferedWriter
+from typing import Any
 import bpy
 from struct import pack
 import bmesh
@@ -7,7 +9,7 @@ import sys
 from collections import OrderedDict
 
 
-def write_string(file, string):
+def write_string(file: BufferedWriter, string: str):
     file.write(pack('<I', len(string)))
     file.write(bytes(string, "utf8"))
 
@@ -18,7 +20,7 @@ class VertWithUV(object):
         self.uv = uv
 
 
-def save(context, filepath):
+def save(context: Any, filepath: str) -> set[str]:
     print(filepath)
     with open(filepath, "wb") as file:
         me = bpy.context.object.data
@@ -44,7 +46,7 @@ def save(context, filepath):
 
         uv_lay = bm.loops.layers.uv.active
 
-        vertices = OrderedDict()
+        vertices: OrderedDict[int, int] = OrderedDict()
         for face in bm.faces:
             for loop in face.loops:
                 vert = loop.vert
