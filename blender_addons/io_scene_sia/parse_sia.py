@@ -175,6 +175,7 @@ def read_triangle_u16(file: BufferedReader) -> Triangle:
 
 
 class MeshType(Enum):
+    RenderFlags = 2
     VariableLength = 8
     BodyPart = 88
     RearCap = 152
@@ -186,7 +187,9 @@ class MeshType(Enum):
 
     @staticmethod
     def from_u8(u8: int):
-        if u8 == 8:
+        if u8 == 2:
+            return MeshType.RenderFlags
+        elif u8 == 8:
             return MeshType.VariableLength
         elif u8 == 88:
             return MeshType.BodyPart
@@ -422,13 +425,20 @@ class Model:
 
             if num == 0 or num == 215:
                 pass
-            elif num == 42 or num == 75:
+            elif num == 42 or num == 75 or num == 58:
                 kind = read_string_u8_len(sia_file)
                 if kind == b"mesh_type":
                     mesh_type = MeshType.from_u8(read_u8(sia_file))
                     if mesh_type == MeshType.VariableLength:
                         model.end_kind = EndKind.MeshType(
                             read_string(sia_file))
+                    elif mesh_type == MeshType.RenderFlags:
+                        skip(sia_file, 4)
+                        model.end_kind = EndKind.MeshType(
+                            read_string_u8_len(sia_file))
+                        skip(sia_file, 5)
+                        model.read_file_end(sia_file, num)
+                        return model                        
                     elif mesh_type == MeshType.BodyPart:
                         model.end_kind = EndKind.MeshType(
                             read_string_with_length(sia_file, 4))
@@ -495,6 +505,7 @@ class Model:
                 skip(sia_file, 80)
                 num1 = read_u32(sia_file)
                 for _ in range(0, num1):
+                    # Possibly mesh data
                     skip(sia_file, 48)
                 name = read_string(sia_file)
                 path = read_string(sia_file)
