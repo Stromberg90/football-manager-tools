@@ -153,6 +153,8 @@ def read_string_with_length(file: BufferedReader, length: int) -> str:
 
 def read_string_u8_len(file: BufferedReader) -> str:
     length = read_u8(file)
+    if length == 0:
+        return ""    
     return unpack('<{}s'.format(length), file.read(length))[0]
 
 
@@ -487,37 +489,15 @@ class Model:
                     num, sia_file.tell()))
 
             instances = read_u32(sia_file)
-            print("instances", instances, " at ", sia_file.tell())
+            # print("instances", instances, " at ", sia_file.tell())
             for i in range(0, instances):
-                instance_type = read_u32(sia_file)
-                # unknown or instance, could be a bitflag or similar
-                if instance_type == 1 or instance_type == 2 or instance_type == 3:
-                    skip(sia_file, 132)
-                elif instance_type == 9:
-                    skip(sia_file, 80)
-                    num1 = read_u32(sia_file)
-                    print("num1: ", num1)
-                    print("Type 9 Skip at:", sia_file.tell())
-                    for _ in range(0, num1):
-                        skip(sia_file, 48)
-                elif instance_type == 0:
-                    skip(sia_file, 80)
-                    num1 = read_u32(sia_file)
-                    for _ in range(0, num1):
-                        skip(sia_file, 48)
-                else:
-                    print("mesh_type: ", mesh_type)
-                    print("model.end_kind.value: ", model.end_kind.value)
-                    raise SiaParseError("{} is a unknown instance_type at file byte position: {}".format(
-                        instance_type, sia_file.tell()))
-                # print(instance_type)
-                # Could it be that only some of them have name and paths, for type 9 I skip over some stuff
-                print("before name:", sia_file.tell())
-                pprint(locals())
+                instance_type = read_u32(sia_file) # not sure what this means.
+                skip(sia_file, 80)
+                num1 = read_u32(sia_file)
+                for _ in range(0, num1):
+                    skip(sia_file, 48)
                 name = read_string(sia_file)
-                print(name)
                 path = read_string(sia_file)
-                print(path)
 
             model.read_file_end(sia_file, num)
 
