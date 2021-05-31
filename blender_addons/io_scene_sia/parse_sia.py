@@ -419,10 +419,9 @@ class Model:
             num = read_u8(sia_file)
             num2 = 0
             if num == 75 or num == 215 or num == 10 or num == 212 or num == 255 or num == 34 or num == 221 or num == 114 or num == 70 or num == 198 or num == 40 or num == 104 or num == 220 or num == 252 or num == 87 or num == 102 or num == 129 or num == 183 or num == 216 or num == 223 or num == 225 or num == 233 or num == 245 or num == 254 or num == 5:
+                # This seems wierd, and I wonder what data is hiding there.
                 skip(sia_file, 3)
                 skip(sia_file, (some_number2 * 56))
-                # This seems wierd, and I wonder what data is hiding there.
-                # skip(sia_file, 1)
                 num2 = read_u8(sia_file)
 
             # num did not immediately seem like a bitfield
