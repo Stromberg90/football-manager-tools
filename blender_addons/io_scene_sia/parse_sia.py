@@ -306,7 +306,7 @@ class Model:
             meshes_num = read_u32(sia_file)
             # After changing these to zero mesh is still there, but the lighting has changed, interesting.
             skip(sia_file, 16)
-
+                
             for i in range(meshes_num):
                 mesh = model.meshes.get(i)
                 assert(mesh is not None)
@@ -329,7 +329,7 @@ class Model:
 
             # Changed all of these to 0, mesh still showed up and looked normal
             skip(sia_file, 64)
-
+                
             vertices_total_num = read_u32(sia_file)
 
             # There seems to be only 10 bits checked, so maybe it's a u16 instead,
@@ -415,17 +415,34 @@ class Model:
             some_number2 = read_u32(sia_file)
 
             # Could be a bit field, not sure, but makes more sense than magic number
+            # probably a bit that says if it is a mesh_type of not.
             num = read_u8(sia_file)
-
-            if num == 75 or num == 215:
+            num2 = 0
+            # print(sia_file.tell())
+            if num == 75 or num == 215 or num == 10 or num == 212 or num == 255 or num == 221 or num == 114 or num == 70 or num == 198 or num == 40 or num == 104 or num == 220 or num == 252 or num == 87 or num == 102 or num == 129 or num == 183 or num == 216 or num == 223 or num == 225 or num == 233 or num == 245 or num == 254 or num == 5:
                 skip(sia_file, 3)
                 skip(sia_file, (some_number2 * 56))
                 # This seems wierd, and I wonder what data is hiding there.
-                skip(sia_file, 1)
+                # skip(sia_file, 1)
+                num2 = read_u8(sia_file)
 
-            if num == 0 or num == 215:
+            # pprint(locals())
+            # print(sia_file.tell())
+            
+            # Does num2 == 42 mean "tag"? try and print it out
+            bf = Bitfield.from_number(num)            
+            if num == 0 or num == 212 or num == 255 or num == 40 or num == 104 or num == 102 or num == 129 or num == 183 or num == 216 or num == 223:
+                print("Notag: [{}][{}][{}][{}][{}][{}][{}][{}]".format(int(bf[7]), int(bf[6]), int(bf[5]), int(bf[4]), int(bf[3]), int(bf[2]), int(bf[1]), int(bf[0])))                                
                 pass
-            elif num == 42 or num == 75 or num == 58:
+            # TODO: These can be combined and concened a lot
+            elif (num == 75 and num2 == 0)  or (num == 225 and num2 == 0) or (num == 221 and num2 == 0) or (num == 114 and num2 == 0) or (num == 70 and num2 == 0) or (num == 245 and num2 == 0) or (num == 254 and num2 == 0) or (num == 215 and num2 == 0) or (num == 220 and num2 == 0) or (num == 198 and num2 == 0) or (num == 233 and num2 == 0) or (num == 252 and num2 == 0) or (num == 5 and num2 == 0) or (num == 87 and num2 == 0):
+                print("Notag: [{}][{}][{}][{}][{}][{}][{}][{}]".format(int(bf[7]), int(bf[6]), int(bf[5]), int(bf[4]), int(bf[3]), int(bf[2]), int(bf[1]), int(bf[0])))                                
+                pass
+            elif (num == 114 and num2 != 0) or (num == 70 and num2 != 0) or (num == 254 and num2 != 0) or (num == 215 and num2 != 0) or (num == 220 and num2 != 0) or (num == 198 and num2 != 0) or (num == 233 and num2 != 0) or (num == 252 and num2 != 0) or (num == 5 and num2 != 0) or (num == 87 and num2 != 0) or (num == 221 and num2 == 2):
+                print("Notag: [{}][{}][{}][{}][{}][{}][{}][{}]".format(int(bf[7]), int(bf[6]), int(bf[5]), int(bf[4]), int(bf[3]), int(bf[2]), int(bf[1]), int(bf[0])))                
+                skip(sia_file, 16)
+            elif num == 42 or num == 75 or num == 58 or num == 10 or num == 34 or (num == 225 and num2 != 0) or (num == 245 and num2 != 0) or (num == 221 and num2 == 42):
+                print("Tag: [{}][{}][{}][{}][{}][{}][{}][{}]".format(int(bf[7]), int(bf[6]), int(bf[5]), int(bf[4]), int(bf[3]), int(bf[2]), int(bf[1]), int(bf[0])))
                 kind = read_string_u8_len(sia_file)
                 if kind == b"mesh_type":
                     mesh_type = MeshType.from_u8(read_u8(sia_file))
