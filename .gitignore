@@ -12,3 +12,4 @@ sia_parser/tests/*
 test_suite/*
 *.ffs_db
 *.lock
+blender_addons/import_all_files_in_blender.py

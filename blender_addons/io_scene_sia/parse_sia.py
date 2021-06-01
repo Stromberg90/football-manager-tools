@@ -49,7 +49,7 @@ class Model:
             read_utils.skip(sia_file, 12)
 
             # This might be some sort of scale, since it tends to resemble
-            # another bouding box value. Maybe sphere radius
+            # another bouding box value. Maybe sphere radius, I had a look but not sure.
             read_utils.read_f32(sia_file)
 
             model.bounding_box = data_types.BoundingBox.read_from_file(sia_file)
@@ -227,7 +227,7 @@ class Model:
                             # This is probably position and such
                             entries_num = read_utils.read_u32(sia_file)
                             read_utils.skip(sia_file, int(entries_num * 48))
-			    # TODO: Why are these are the same?
+                            # TODO: Why are these are the same?
                             if cap_type == 0:
                                 read_utils.read_string(sia_file)
                                 read_utils.read_string(sia_file)
@@ -276,7 +276,12 @@ class Model:
             instances = read_utils.read_u32(sia_file)
             for i in range(0, instances):
                 instance_type = read_utils.read_u32(sia_file) # not sure what this means.
-                read_utils.skip(sia_file, 80)
+                x = read_utils.read_f32(sia_file) # Side to side, no idea if X or not.
+                z = read_utils.read_f32(sia_file) # Back and forwards, no idea if Z or not.
+                y = read_utils.read_f32(sia_file) # Up and down
+                read_utils.skip(sia_file, 40) # From trying out different values I think this is a Transformation matrix
+                # and it matches with 40 bytes I think
+                read_utils.skip(sia_file, 28) # This data seems separate from the previous one
                 num1 = read_utils.read_u32(sia_file)
                 for _ in range(0, num1):
                     # Possibly mesh data
