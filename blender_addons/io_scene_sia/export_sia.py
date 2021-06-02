@@ -20,7 +20,7 @@ class VertWithUV(object):
         self.uv = uv
 
 
-def save(context: Any, filepath: str) -> set[str]:
+def save(context: Any, filepath: str):
     print(filepath)
     with open(filepath, "wb") as file:
         me = bpy.context.object.data
@@ -47,6 +47,8 @@ def save(context: Any, filepath: str) -> set[str]:
         uv_lay = bm.loops.layers.uv.active
 
         vertices: OrderedDict[int, int] = OrderedDict()
+        # TODO: This needs to go through all the meshes, and maybe instances to have the correct bounding box.
+        # if I first collect all the data then write it out, it should be good.
         for face in bm.faces:
             for loop in face.loops:
                 vert = loop.vert

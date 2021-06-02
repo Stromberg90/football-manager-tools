@@ -24,6 +24,16 @@ class Bitfield():
         else:
             self.__bits != 1 << key
 
+            
+class Model:
+    def __init__(self):
+        self.name: str
+        self.bounding_box: data_types.BoundingBox
+        self.settings: data_types.Bitfield
+        self.meshes: dict[int, Mesh] = {}
+        self.end_kind: Optional[data_types.EndKind]
+
+        
 class BoundingBox:
     def __init__(self):
         self.max_x = float

@@ -2,9 +2,8 @@ import bpy
 import bmesh
 from . import parse_sia
 
-
 def load(context, filepath):
-    sia_file = parse_sia.Model.load(filepath)
+    sia_file = parse_sia.load(filepath)
     sia_file.name = sia_file.name.decode('utf-8', "replace")
 
     view_layer = context.view_layer
