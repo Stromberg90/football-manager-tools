@@ -49,10 +49,10 @@ def load(path: str):
         for _ in range(objects_num):
             mesh = data_types.Mesh()
 
-            read_utils.skip(sia_file, 4)
+            read_utils.skip(sia_file, 4)  # Been 0 when I've looked
             mesh.vertices_num = read_utils.read_u32(sia_file)
 
-            read_utils.skip(sia_file, 4)
+            read_utils.skip(sia_file, 4)  # Been 0 when I've looked
             # Number of triangles when divided by 3
             mesh.triangles_num = int(read_utils.read_u32(sia_file) / 3)
 
@@ -187,7 +187,7 @@ def load(path: str):
         if num == 0 or num == 212 or num == 255 or num == 40 or num == 104 or num == 102 or num == 129 or num == 183 or num == 216 or num == 223:
             pass
         # TODO: These can be combined and concened a lot
-        elif (num == 75 and num2 == 0)  or (num == 225 and num2 == 0) or (num == 221 and num2 == 0) or (num == 114 and num2 == 0) or (num == 70 and num2 == 0) or (num == 245 and num2 == 0) or (num == 254 and num2 == 0) or (num == 215 and num2 == 0) or (num == 220 and num2 == 0) or (num == 198 and num2 == 0) or (num == 233 and num2 == 0) or (num == 252 and num2 == 0) or (num == 5 and num2 == 0) or (num == 87 and num2 == 0):
+        elif (num == 75 and num2 == 0) or (num == 225 and num2 == 0) or (num == 221 and num2 == 0) or (num == 114 and num2 == 0) or (num == 70 and num2 == 0) or (num == 245 and num2 == 0) or (num == 254 and num2 == 0) or (num == 215 and num2 == 0) or (num == 220 and num2 == 0) or (num == 198 and num2 == 0) or (num == 233 and num2 == 0) or (num == 252 and num2 == 0) or (num == 5 and num2 == 0) or (num == 87 and num2 == 0):
             pass
         elif (num == 114 and num2 != 0) or (num == 70 and num2 != 0) or (num == 254 and num2 != 0) or (num == 215 and num2 != 0) or (num == 220 and num2 != 0) or (num == 198 and num2 != 0) or (num == 233 and num2 != 0) or (num == 252 and num2 != 0) or (num == 5 and num2 != 0) or (num == 87 and num2 != 0) or (num == 221 and num2 == 2):
             read_utils.skip(sia_file, 16)

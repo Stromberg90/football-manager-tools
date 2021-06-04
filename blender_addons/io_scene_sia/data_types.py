@@ -1,4 +1,5 @@
 from enum import Enum
+import sys
 from io import BufferedReader
 from . import read_utils
 
@@ -27,21 +28,30 @@ class Bitfield():
             
 class Model:
     def __init__(self):
-        self.name: str
-        self.bounding_box: data_types.BoundingBox
-        self.settings: data_types.Bitfield
-        self.meshes: dict[int, Mesh] = {}
-        self.end_kind: Optional[data_types.EndKind]
+        self.name = ""
+        self.bounding_box = BoundingBox()
+        self.settings = None
+        self.meshes = {}
+        self.end_kind = None
 
         
 class BoundingBox:
     def __init__(self):
-        self.max_x = float
-        self.max_y = float
-        self.max_z = float
-        self.min_x = float
-        self.min_y = float
-        self.min_z = float
+        self.max_x = sys.float_info.min
+        self.max_y = sys.float_info.min
+        self.max_z = sys.float_info.min
+        self.min_x = sys.float_info.max
+        self.min_y = sys.float_info.max
+        self.min_z = sys.float_info.max
+
+    def update_with_vector(self, v):
+        self.min_x = min(self.min_x, v.x)
+        self.min_y = min(self.min_y, v.y)
+        self.min_z = min(self.min_z, v.z)
+
+        self.max_x = max(self.max_x, v.x)
+        self.max_y = max(self.max_y, v.y)
+        self.max_z = max(self.max_z, v.z)
 
     @staticmethod
     def read_from_file(sia_file: BufferedReader):
@@ -56,59 +66,59 @@ class BoundingBox:
 
 
 class Mesh:
-    def __init__(self) -> None:
-        self.id: int
-        self.vertices_num: int
-        self.triangles_num: int
-        self.materials: list[Material] = []
-        self.vertices: list[Vertex] = []
-        self.triangles: list[Triangle] = []
+    def __init__(self):
+        self.id = 0
+        self.vertices_num = 0
+        self.triangles_num = 0
+        self.materials = []
+        self.vertices = []
+        self.triangles = []
 
 
 class Vector2:
-    def __init__(self, x: float = 0.0, y: float = 0.0) -> None:
+    def __init__(self, x=0.0, y=0.0):
         self.x = x
         self.y = y
 
         
-def read_vector2(file: BufferedReader) -> Vector2:
+def read_vector2(file):
     x = read_utils.read_f32(file)
     y = read_utils.read_f32(file)
     return Vector2(x, y)
 
 
 class Vector3:
-    def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0) -> None:
+    def __init__(self, x=0.0, y=0.0, z=0.0):
         self.x = x
         self.y = y
         self.z = z
 
         
-def read_vector3(file: BufferedReader) -> Vector3:
+def read_vector3(file):
     x = read_utils.read_f32(file)
     y = read_utils.read_f32(file)
     z = read_utils.read_f32(file)
-    return Vector3(x, y, z)        
+    return Vector3(x, y, z)
 
 
 class Vertex:
-    def __init__(self, position: Vector3 = Vector3(), normal: Vector3 = Vector3(), uv: Vector2 = Vector2()) -> None:
-        self.position: Vector3 = position
-        self.normal: Vector3 = normal
-        self.uv: Vector2 = uv
+    def __init__(self, position=Vector3(), normal=Vector3(), uv=Vector2()):
+        self.position = position
+        self.normal = normal
+        self.uv = uv
 
 
 class Triangle:
-    def __init__(self) -> None:
-        self.index1: int
-        self.index2: int
-        self.index3: int
+    def __init__(self):
+        self.index1 = 0
+        self.index2 = 0
+        self.index3 = 0
 
-    def max(self) -> int:
+    def max(self):
         return max(self.index1, self.index2, self.index3)
 
     
-def read_triangle_u32(file: BufferedReader) -> Triangle:
+def read_triangle_u32(file):
     triangle = Triangle()
     triangle.index1 = read_utils.read_u32(file)
     triangle.index2 = read_utils.read_u32(file)
@@ -116,24 +126,24 @@ def read_triangle_u32(file: BufferedReader) -> Triangle:
     return triangle
 
 
-def read_triangle_u16(file: BufferedReader) -> Triangle:
+def read_triangle_u16(file):
     triangle = Triangle()
     triangle.index1 = read_utils.read_u16(file)
     triangle.index2 = read_utils.read_u16(file)
     triangle.index3 = read_utils.read_u16(file)
-    return triangle    
+    return triangle
 
 class Texture:
-    def __init__(self) -> None:
-        self.id: int
-        self.name: str
+    def __init__(self):
+        self.id = 0
+        self.name = ""
 
 
 class Material:
-    def __init__(self) -> None:
-        self.name: str
-        self.kind: str
-        self.textures: list[Texture] = []
+    def __init__(self):
+        self.name = ""
+        self.kind = ""
+        self.textures = []
 
         
 class MeshType(Enum):
@@ -148,7 +158,7 @@ class MeshType(Enum):
     Unknown = 0
 
     @staticmethod
-    def from_u8(u8: int):
+    def from_u8(u8):
         if u8 == 2:
             return MeshType.RenderFlags
         elif u8 == 8:
@@ -176,26 +186,26 @@ class EndKindType(Enum):
 
 
 class EndKind():
-    def __init__(self) -> None:
-        self.type: EndKindType
+    def __init__(self):
+        self.type = None
         self.value = None
 
     @staticmethod
-    def MeshType(value: str):
+    def MeshType(value):
         result = EndKind()
         result.type = EndKindType.MeshType
         result.value = value
         return result
 
     @staticmethod
-    def IsBanner(value: int):
+    def IsBanner(value):
         result = EndKind()
         result.type = EndKindType.IsBanner
         result.value = value
         return result
 
     @staticmethod
-    def IsCompBanner(value: int):
+    def IsCompBanner(value):
         result = EndKind()
         result.type = EndKindType.IsCompBanner
         result.value = value

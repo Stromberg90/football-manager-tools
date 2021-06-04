@@ -1,211 +1,148 @@
 from io import BufferedWriter
 from typing import Any
 import bpy
+from mathutils import Matrix
 from struct import pack
 import bmesh
 import ntpath
 import os
 import sys
 from collections import OrderedDict
+from bpy_extras.io_utils import (
+    orientation_helper,
+    axis_conversion,
+)
+import pprint
+from . import data_types
+from . import write_utils
 
+def triangulate(me):
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bmesh.ops.triangulate(bm, faces=bm.faces)
+    bm.to_mesh(me)
+    bm.free()
 
-def write_string(file: BufferedWriter, string: str):
-    file.write(pack('<I', len(string)))
-    file.write(bytes(string, "utf8"))
-
-
-class VertWithUV(object):
-    def __init__(self, vert, uv):
-        self.inner_vert = vert
-        self.uv = uv
-
-
-def save(context: Any, filepath: str):
-    print(filepath)
+def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection=False):
     with open(filepath, "wb") as file:
-        me = bpy.context.object.data
+        # TODO: Setting for configuring the base path like: C:\Users\%USER%\Documents\Sports Interactive\Football Manager 2021
+        # then on export it would cut away that part of the path to make relative filepaths.
+        scene = context.scene
+        if use_selection:
+            context_objects = context.selected_objects
+        else:
+            context_objects = context.view_layer.objects
+        if use_selection:
+            data_seq = context.selected_objects
+        else:
+            data_seq = scene.objects
 
-        bm = bmesh.new()   # create an empty BMesh
-        bm.from_mesh(me)
-        bmesh.ops.triangulate(bm, faces=bm.faces)
-        bm.to_mesh(me)
-        me.calc_tangents()
-        bm.from_mesh(me)
+        global_matrix = axis_conversion(
+            to_forward=axis_forward,
+            to_up=axis_up,
+        ).to_4x4() @ Matrix.Scale(1.0, 4)
 
-        bm.verts.index_update()
-        bm.edges.index_update()
-        bm.faces.index_update()
+        model = data_types.Model()
+        model.bounding_box = data_types.BoundingBox()
+        model.name = os.path.splitext(os.path.basename(filepath))[0]
 
-        min_x = sys.float_info.max
-        min_y = sys.float_info.max
-        min_z = sys.float_info.max
+        for mesh_index, obj in enumerate(context_objects):
+            if obj.mode == "EDIT":
+                obj.update_from_editmode()
 
-        max_x = sys.float_info.min
-        max_y = sys.float_info.min
-        max_z = sys.float_info.min
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+            mesh_owner = obj.evaluated_get(depsgraph)
 
-        uv_lay = bm.loops.layers.uv.active
+            mesh = mesh_owner.to_mesh()
 
-        vertices: OrderedDict[int, int] = OrderedDict()
-        # TODO: This needs to go through all the meshes, and maybe instances to have the correct bounding box.
-        # if I first collect all the data then write it out, it should be good.
-        for face in bm.faces:
-            for loop in face.loops:
-                vert = loop.vert
-                vertices[vert.index] = VertWithUV(vert, loop[uv_lay].uv)
+            if mesh is None:
+                return
 
-                min_x = min(min_x, vert.co.x)
-                min_y = min(min_y, vert.co.y)
-                min_z = min(min_z, vert.co.z)
+            triangulate(mesh)
 
-                max_x = max(max_x, vert.co.x)
-                max_y = max(max_y, vert.co.y)
-                max_z = max(max_z, vert.co.z)
+            mat = global_matrix @ obj.matrix_world
+            mesh.transform(mat)
+            if mat.is_negative:
+                mesh.flip_normals()
 
-        for _, vert in sorted(vertices.items()):
-            uv = vert.uv
+            uv_layer = mesh.uv_layers.active.data[:]
+            mesh_verts = mesh.vertices[:]
 
-        # return {'FINISHED'}
+            face_index_pairs = [(face, index) for index, face in enumerate(mesh.polygons)]
+            for f in face_index_pairs:
+                print(f)
+
+            loops = mesh.loops
+
+            materials = mesh.materials[:]
+            material_names = [m.name if m else None for m in materials]
+            print(material_names)
+            print(len(face_index_pairs))
+
+            mesh.calc_normals_split()
+
+            sia_mesh = data_types.Mesh()
+            sia_mesh.id = mesh_index
+            sia_mesh.vertices_num = len(mesh_verts)
+            sia_mesh.triangles_num = len(face_index_pairs)
+            for (face, index) in face_index_pairs:
+                indecies = [i for i in face.loop_indices]
+                triangle = data_types.Triangle()
+                triangle.index1 = indecies[0]
+                triangle.index2 = indecies[1]
+                triangle.index3 = indecies[2]
+                sia_mesh.triangles.append(triangle)
+                for vi in face.vertices:
+                    v = mesh_verts[vi]
+                    vertex = data_types.Vertex()
+                    vertex.position = data_types.Vector3(v.co.x, v.co.y, v.co.z)
+                    model.bounding_box.update_with_vector(vertex.position)
+
+                    vertex.normal = data_types.Vector3(v.normal.x, v.normal.y, v.normal.z)
+                    uv = uv_layer[v.index].uv
+                    vertex.uv = data_types.Vector2(uv.x, uv.y)
+                    sia_mesh.vertices.append(vertex)
+
+            model.meshes[mesh_index] = sia_mesh
+
+            mesh_owner.to_mesh_clear()
 
         file.write(b"SHSM")
-        # Is this the version?
+
         file.write(pack('<I', 35))
 
-        filename = os.path.splitext(ntpath.basename(filepath))[0]
-        write_string(file, filename)
+        write_utils.write_string(file, model.name)
 
-        # So far these bytes have only been zero
-        file.write(bytearray(12))
+        write_utils.write_zeros(file, 12)
 
-        # This might be some sort of scale, since it tends to resemble another bounding box value
-        # changing it did nothing
-        file.write(pack('<f', max_x))
+        write_utils.write_f32(file, max(model.bounding_box.max_x, max(model.bounding_box.max_y, model.bounding_box.max_z)))
 
-        # model.bounding_box.min_x
-        file.write(pack('<f', min_x))
-        # model.bounding_box.min_y
-        file.write(pack('<f', min_y))
-        # model.bounding_box.min_z
-        file.write(pack('<f', min_z))
+        write_utils.write_f32(file, model.bounding_box.min_x)
+        write_utils.write_f32(file, model.bounding_box.min_y)
+        write_utils.write_f32(file, model.bounding_box.min_z)
 
-        # model.bounding_box.max_x
-        file.write(pack('<f', max_x))
-        # model.bounding_box.max_y
-        file.write(pack('<f', max_y))
-        # model.bounding_box.max_z
-        file.write(pack('<f', max_z))
+        write_utils.write_f32(file, model.bounding_box.max_x)
+        write_utils.write_f32(file, model.bounding_box.max_y)
+        write_utils.write_f32(file, model.bounding_box.max_z)
 
-        # model.objects_num
-        file.write(pack('<I', 1))
+        write_utils.write_u32(file, len(model.meshes))
 
-        # So far has been 0's, when I changed it the mesh became invisible
-        file.write(bytearray(4))
+        for (mesh_id, mesh) in model.meshes.items():
+            write_utils.write_zeros(file, 4)
+            write_utils.write_u32(file, mesh.vertices_num)
 
-        # num_vertices
-        file.write(pack('<I', len(vertices)))
+            write_utils.write_zeros(file, 4)
+            write_utils.write_u32(file, mesh.triangles_num * 3)
 
-        # Zero's, changing it made it invisible
-        file.write(bytearray(4))
+            write_utils.write_u32(file, mesh_id)
+            write_utils.write_zeros(file, 8)
 
-        # This diveded by 3 gives the amount of faces, like another set of bytes later on
-        # I'm wondering if this is the total amount of faces, and the other one is per mesh
-        # model.something_about_faces_or_vertices
-        file.write(pack('<I', len(bm.faces) * 3))
-        file.write(bytearray(4))  # Unknown
-        # Unknown
-        file.write(bytearray([255, 255, 255, 255, 255, 255, 255, 255]))
+        write_utils.write_u32(file, len(model.meshes))
 
-        # This needs to be moved into the mesh, then maybe when reading faces/vertices/materials one can match against it.
-        # model.object_id
-        file.write(pack('<I', 1))
-
-        # Changing these did nothing
-        file.write(bytearray(16))
-
-        # model.num_meshes
-        # file.write(pack('<I', 1))
-
-        # Changing these did nothing
-        # file.write(bytearray(16))
-
-        for _ in range(0, 1):  # 0, num_meshes
-            write_string(file, "ball")  # material name
-            # materials_num
-            file.write(pack('<B', 1))
-            for _ in range(0, 1):  # 0, materials_num
-                # I should figure out why this is "base" maybe it needs to be
-                write_string(file, "base")
-                file.write(pack('<B', 4))  # textures num
-                for _ in range(0, 1):  # 0, textures num
-                    # Maybe a way to identify which texture it is, like a id
-                    file.write(pack('<B', 0))
-                    # texture path
-                    write_string(file, "mesh/ball/white_ball_[al]")
-
-                    file.write(pack('<B', 1))
-                    # texture path
-                    write_string(file, "mesh/ball/white_ball_[ro]_[me]_[ao]")
-
-                    file.write(pack('<B', 2))
-                    # texture path
-                    write_string(file, "mesh/ball/white_ball_[no]")
-
-                    file.write(pack('<B', 5))
-                    # texture path
-                    write_string(file, "mesh/ball/white_ball_[ma]")
-
-        # Not sure what these are
-        file.write(bytearray(24))
-        file.write(bytearray(24))
-        file.write(bytearray(16))
-
-        # Maybe this is for this mesh, and the earlier one is for the entire file.
-        # local_num_vertecies
-        file.write(pack('<I', len(vertices)))
-
-        # Seems to be important for the mesh to show up
-        file.write(pack('<I', 39))
-
-        for index, vert in sorted(vertices.items()):
-            file.write(pack('<f', vert.inner_vert.co.x))
-            file.write(pack('<f', vert.inner_vert.co.y))
-            file.write(pack('<f', vert.inner_vert.co.z))
-
-            # Unsure if these are normals or not
-            # I should find a simple object, like a flat plane and check to see
-            # where the normals are, or whatever it might be
-            # From checking again, I'm confident these are the normals, don't know what the others are.
-            # file.write(bytearray(12))
-            file.write(pack('<f', vert.inner_vert.normal.x))
-            file.write(pack('<f', vert.inner_vert.normal.y))
-            file.write(pack('<f', vert.inner_vert.normal.z))
-
-            uv = vert.uv
-            file.write(pack('<f', uv.x))
-            file.write(pack('<f', uv.y))
-
-            # Changed these, did nothing
-            # Adding them did add shading to the mesh ingame
-            # print(vert.inner_vert.tangent)
-            # file.write(pack('<f', 10))
-            # file.write(bytearray(8))
-            # file.write(pack('<f', 0))
-            # file.write(pack('<f', 0))
-            # Last one is usually 1 or -1
-            # file.write(pack('<f', 0))
-            file.write(bytearray(16))
-
-        # number of entries, so the triangle amount * 3
-        file.write(pack('<I', len(bm.faces) * 3))
-        for face in bm.faces:
-            for loop in face.loops:
-                vert = loop.vert
-                file.write(pack('<H', vert.index))
-
-        file.write(bytearray(13))
-
-        file.write(b"EHSM")
-        bm.free()
+        write_utils.write_zeros(file, 16)
+        
         return {'FINISHED'}
 
     return {'CANCELED'}
+

@@ -30,7 +30,7 @@ bl_info = {
     "tracker_url": "https://github.com/Stromberg90/football-manager-tools/issues",
 }
 
-
+@orientation_helper(axis_forward='Y', axis_up='Z')
 class ExportSIA(bpy.types.Operator, ExportHelper):
     """Save a SIA File"""
 
@@ -47,7 +47,7 @@ class ExportSIA(bpy.types.Operator, ExportHelper):
     def execute(self, context):
         from . import export_sia
 
-        return export_sia.save(context, self.filepath)
+        return export_sia.save(context, self.filepath, self.axis_forward, self.axis_up)
 
 
 class ImportSIA(bpy.types.Operator, ExportHelper):
