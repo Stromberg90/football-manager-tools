@@ -45,23 +45,28 @@ def load(path: str):
         model.bounding_box = data_types.BoundingBox.read_from_file(sia_file)
 
         objects_num = read_utils.read_u32(sia_file)
+        print("objects_num: ", objects_num)
 
         for _ in range(objects_num):
             mesh = data_types.Mesh()
 
             read_utils.skip(sia_file, 4)  # Been 0 when I've looked
             mesh.vertices_num = read_utils.read_u32(sia_file)
+            print("mesh.vertices_num: ", mesh.vertices_num)
 
             read_utils.skip(sia_file, 4)  # Been 0 when I've looked
             # Number of triangles when divided by 3
             mesh.triangles_num = int(read_utils.read_u32(sia_file) / 3)
+            print("mesh.triangles_num: ", mesh.triangles_num)
 
             mesh.id = read_utils.read_u32(sia_file)
+            print("mesh.id: ", mesh.id)
             read_utils.skip(sia_file, 8)
 
             model.meshes[mesh.id] = mesh
 
         meshes_num = read_utils.read_u32(sia_file)
+        print("meshes_num: ", meshes_num)
         # After changing these to zero mesh is still there,
         # but the lighting has changed, interesting.
         read_utils.skip(sia_file, 16)
@@ -90,27 +95,40 @@ def load(path: str):
         read_utils.skip(sia_file, 64)
 
         vertices_total_num = read_utils.read_u32(sia_file)
+        print("vertices_total_num: ", vertices_total_num)
 
         # There seems to be only 10 bits checked, so maybe it's a u16 instead,
         # and the other 16 bits are something else
         model.settings = data_types.Bitfield.from_number(read_utils.read_u32(sia_file))
+        print("model.settings[0]: ", model.settings[0])
+        print("model.settings[1]: ", model.settings[1])
+        print("model.settings[2]: ", model.settings[2])
+        print("model.settings[3]: ", model.settings[3])
+        print("model.settings[4]: ", model.settings[4])
+        print("model.settings[5]: ", model.settings[5])
+        print("model.settings[6]: ", model.settings[6])
+        print("model.settings[7]: ", model.settings[7])
+        print("model.settings[8]: ", model.settings[8])
+        print("model.settings[9]: ", model.settings[9])        
+        
         # Result so far:
         # 1 and 2 Always checked, normal and position I think
         # 3 I think this is uv, also always checked
-        # 4 8 bits
-        # 5 8 bits
-        # 6 16 bits
-        # 7 and 8 Unsure, but 12 or 8 I think for either one
-        # 9 20 bits
-        # 10 4 bits, seems strange
+        # 4 Read 8 bits
+        # 5 Read 8 bits
+        # 6 Read 16 bits
+        # 7 and 8 Read Unsure, but 12 or 8 I think for either one
+        # 9 20 Read bits
+        # 10 Read 4 bits, seems strange
 
+        print("Before reading vertices: ", sia_file.tell())
         for i in range(meshes_num):
             mesh = model.meshes.get(i)
-            assert(mesh is not None)
 
+            print("mesh.vertices: ", mesh.vertices_num)
             for _ in range(mesh.vertices_num):
                 position, normal, uv = (None, None, None)
-                if model.settings[0]:  # This and the normal might be flipped
+                if model.settings[0]:
                     position = data_types.read_vector3(sia_file)
                 else:
                     raise SiaParseError("Missing position flag")
@@ -148,11 +166,15 @@ def load(path: str):
 
                 mesh.vertices.append(data_types.Vertex(position, normal, uv))
 
-        number_of_triangles = int(read_utils.read_u32(sia_file) / 3)
+            print("Num vertices read: ", len(mesh.vertices))
+
+        print("Before number_of_triangles: ", sia_file.tell())
+        number_of_triangles = int(read_utils.read_u32(sia_file) / 3) # This is how many indecies there is,
+        print("number_of_triangles: ", number_of_triangles)
+        # then it reads through those, maybe something to consider changing in mine.
 
         for i in range(meshes_num):
             mesh = model.meshes.get(i)
-            assert(mesh is not None)
             for _ in range(mesh.triangles_num):
                 triangle: data_types.Triangle
                 if vertices_total_num > 65535:
@@ -160,7 +182,7 @@ def load(path: str):
                 else:
                     triangle = data_types.read_triangle_u16(sia_file)
 
-                if triangle.max() > len(mesh.vertices):
+                if triangle.max() > len(mesh.vertices) - 1:
                     raise SiaParseError(
                         "Face index larger than available vertices\nFace Index: {}\nVertices Length: {}\n at file byte position: {}".format(triangle.max(), len(mesh.vertices), sia_file.tell()))
 
