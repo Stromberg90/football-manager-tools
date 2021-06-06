@@ -27,6 +27,12 @@ def triangulate(me):
 
 
 def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection=False):
+    def rvec3d(v):
+        return round(v[0], 6), round(v[1], 6), round(v[2], 6)
+
+    def rvec2d(v):
+        return round(v[0], 6), round(v[1], 6)
+
     with open(filepath, "wb") as file:
         # TODO: Setting for configuring the base path like: C:\Users\%USER%\Documents\Sports Interactive\Football Manager 2021
         # then on export it would cut away that part of the path to make relative filepaths.
@@ -71,15 +77,8 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
                 mesh.flip_normals()
 
             mesh.calc_normals_split()
-            b_mesh = bmesh.new()
-            b_mesh.from_mesh(mesh)
 
-            b_mesh.verts.index_update()
-            b_mesh.edges.index_update()
-            b_mesh.faces.index_update()
-
-            # uv_lay = b_mesh.loops.layers.uv.active
-            uv_layer = mesh.uv_layers.active.data[:]
+            active_uv_layer = mesh.uv_layers.active.data
 
             materials = mesh.materials[:]
             for material in materials:
@@ -89,41 +88,52 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
 
             sia_mesh.id = mesh_index
 
-            # for face in b_mesh.faces:
-            #     triangle = data_types.Triangle()
-            #     triangle.index1 = face.verts[0].index
-            #     triangle.index2 = face.verts[1].index
-            #     triangle.index3 = face.verts[2].index
-            #     sia_mesh.triangles.append(triangle)
-            #     for loop in face.loops:
-            #         vert = loop.vert
-            #         vertex = data_types.Vertex()
-            #         vertex.position = data_types.Vector3(vert.co.x, vert.co.y, vert.co.z)
-            #         model.bounding_box.update_with_vector(vertex.position)
-            #         vertex.normal = data_types.Vector3(vert.normal.x, vert.normal.y, vert.normal.z)
-            #         uv = loop[uv_lay].uv
-            #         vertex.uv = data_types.Vector2(uv.x, uv.y)
-            #         sia_mesh.vertices.append(vertex)
+            mesh_verts = mesh.vertices
+            vdict = [{} for i in range(len(mesh_verts))]
+            ply_verts = []
+            ply_faces = [[] for f in range(len(mesh.polygons))]
+            vert_count = 0
 
-            for v in mesh.vertices:
+            for i, f in enumerate(mesh.polygons):
+                uv = [active_uv_layer[l].uv[:]
+                    for l in range(f.loop_start, f.loop_start + f.loop_total)
+                ]
+                pf = ply_faces[i]
+                for j, vidx in enumerate(f.vertices):
+                    v = mesh_verts[vidx]
+
+                    normal = v.normal[:]
+                    normal_key = rvec3d(normal)
+
+                    uvcoord = (uv[j][0] - 1), ((uv[j][1] * -1) - 1)
+                    uvcoord_key = rvec2d(uvcoord)
+
+                    key = normal_key, uvcoord_key
+
+                    vdict_local = vdict[vidx]
+                    pf_vidx = vdict_local.get(key)
+
+                    if pf_vidx is None:  # Same as vdict_local.has_key(key)
+                        pf_vidx = vdict_local[key] = vert_count
+                        ply_verts.append((vidx, normal, uvcoord))
+                        vert_count += 1
+
+                    pf.append(pf_vidx)
+
+            for index, normal, uv_coords in ply_verts:
                 vertex = data_types.Vertex()
-                vertex.position = data_types.Vector3(v.co.x, v.co.y, v.co.z)
+                vert = mesh_verts[index]
+                vertex.position = data_types.Vector3(vert.co.x, vert.co.y, vert.co.z)
+                vertex.normal = data_types.Vector3(normal[0], normal[1], normal[2])
+                vertex.uv = data_types.Vector2(uv_coords[0], uv_coords[1])
                 model.bounding_box.update_with_vector(vertex.position)
-                vertex.normal = data_types.Vector3(v.normal.x, v.normal.y, v.normal.z)
-                uv = uv_layer[v.index].uv
-                vertex.uv = data_types.Vector2(uv.x, uv.y)
                 sia_mesh.vertices.append(vertex)
 
-                # print("Index: ", v.index)
-                # print("UV: ", uv_layer[v.index].uv)
-                # print("Normal: ", v.normal)
-
-            for triangle in mesh.polygons:
-                indecies = triangle.vertices[:]
+            for pf in ply_faces:
                 triangle = data_types.Triangle()
-                triangle.index1 = indecies[0]
-                triangle.index2 = indecies[1]
-                triangle.index3 = indecies[2]
+                triangle.index1 = pf[0]
+                triangle.index2 = pf[1]
+                triangle.index3 = pf[2]
                 sia_mesh.triangles.append(triangle)
 
             sia_mesh.vertices_num = len(sia_mesh.vertices)
@@ -199,26 +209,16 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
         model.settings[2] = True
         write_utils.write_u32(file, model.settings.number())
 
-        print("Before writing vertices: ", file.tell())
-        writes = 0
         for (mesh_id, mesh) in model.meshes.items():
-            print("mesh.vertices: ", len(mesh.vertices))
             for vertex in mesh.vertices:
-                print("VERT")
                 if model.settings[0]:
                     write_utils.write_vector3(file, vertex.position)
-                    writes += 3
                 if model.settings[1]:
                     write_utils.write_vector3(file, vertex.normal)
-                    writes += 3
                 if model.settings[2]:
                     write_utils.write_vector2(file, vertex.uv)
-                    writes += 2
-            print("writes: ", writes)
 
         write_utils.write_u32(file, number_of_triangles * 3)
-        print("number_of_triangles: ", number_of_triangles)
-        print("number_of_triangles * 3: ", number_of_triangles * 3)
 
         for (mesh_id, mesh) in model.meshes.items():
             for triangle in mesh.triangles:

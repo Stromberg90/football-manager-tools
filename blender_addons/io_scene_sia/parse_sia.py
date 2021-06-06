@@ -99,6 +99,7 @@ def load(path: str):
 
         # There seems to be only 10 bits checked, so maybe it's a u16 instead,
         # and the other 16 bits are something else
+        # could any of these be vertex color?, cause that would be handy
         model.settings = data_types.Bitfield.from_number(read_utils.read_u32(sia_file))
         print("model.settings[0]: ", model.settings[0])
         print("model.settings[1]: ", model.settings[1])
