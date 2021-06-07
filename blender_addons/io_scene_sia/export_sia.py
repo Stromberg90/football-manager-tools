@@ -84,6 +84,13 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
             for material in materials:
                 sia_material = data_types.Material()
                 sia_material.name = material.name
+                sia_material.kind = "base"
+                for texture in [("stadiums/textures/no_stand/empty_corner_concrete_02_[al]", 0), ("stadiums/textures/no_stand/empty_corner_concrete_02_[ro]_[me]_[ao]", 1), ("stadiums/textures/no_stand/empty_corner_concrete_02_[no]", 2), ("stadiums/textures/no_stand/empty_corner_concrete_02_[ma]", 5)]:
+                    sia_texture = data_types.Texture()
+                    sia_texture.name = texture[0]
+                    sia_texture.id = texture[1]
+                    sia_material.textures.append(sia_texture)
+
                 sia_mesh.materials.append(sia_material)
 
             sia_mesh.id = mesh_index
@@ -105,7 +112,7 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
                     normal = v.normal[:]
                     normal_key = rvec3d(normal)
 
-                    uvcoord = (uv[j][0] - 1), ((uv[j][1] * -1) - 1)
+                    uvcoord = uv[j][0], ((uv[j][1] * - 1) + 1)
                     uvcoord_key = rvec2d(uvcoord)
 
                     key = normal_key, uvcoord_key
@@ -120,6 +127,7 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
 
                     pf.append(pf_vidx)
 
+            # TODO: Move this inline into the loop above
             for index, normal, uv_coords in ply_verts:
                 vertex = data_types.Vertex()
                 vert = mesh_verts[index]
@@ -129,6 +137,7 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
                 model.bounding_box.update_with_vector(vertex.position)
                 sia_mesh.vertices.append(vertex)
 
+            # TODO: Move this inline into the loop above
             for pf in ply_faces:
                 triangle = data_types.Triangle()
                 triangle.index1 = pf[0]
@@ -136,6 +145,7 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
                 triangle.index3 = pf[2]
                 sia_mesh.triangles.append(triangle)
 
+            # TODO: These don't need to be fields, it can compute this when writing it.
             sia_mesh.vertices_num = len(sia_mesh.vertices)
             sia_mesh.triangles_num = len(sia_mesh.triangles)
 
@@ -171,7 +181,16 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
             write_utils.write_u32(file, mesh.triangles_num * 3)
 
             write_utils.write_u32(file, mesh_id)
-            write_utils.write_zeros(file, 8)
+            write_utils.write_u8(file, 255) # Did not see any difference when setting it to 0
+            write_utils.write_u8(file, 255) # Did not see any difference when setting it to 0
+            write_utils.write_u8(file, 255) # Did not see any difference when setting it to 0
+            write_utils.write_u8(file, 255) # Setting it to zero made it crash
+            write_utils.write_u8(file, 255) # Did not see any difference when setting it to 0
+            write_utils.write_u8(file, 255) # Did not see any difference when setting it to 0
+            write_utils.write_u8(file, 255) # Did not see any difference when setting it to 0
+            write_utils.write_u8(file, 255) # Setting it to zero made it crash
+            # for _ in range(0, 8):
+            #     write_utils.write_u8(file, 255)
 
         write_utils.write_u32(file, len(model.meshes))
 
@@ -180,6 +199,7 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
         # TODO: When exporting I want to split the materials on a mesh into their
         # own mesh and export that, unless I can do multiple materials without it?
         # since I want to do different tileable materials and such.
+        # like, is there any data when I read/write the faces which could be the material index?
         for (mesh_id, mesh) in model.meshes.items():
             write_utils.write_string(file, mesh.materials[0].name)
             write_utils.write_u8(file, len(mesh.materials))

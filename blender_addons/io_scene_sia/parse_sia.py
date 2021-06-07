@@ -69,6 +69,7 @@ def load(path: str):
         print("meshes_num: ", meshes_num)
         # After changing these to zero mesh is still there,
         # but the lighting has changed, interesting.
+        # well, when exporting my own mesh, having these at 0 made it crash.
         read_utils.skip(sia_file, 16)
 
         for i in range(meshes_num):
