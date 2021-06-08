@@ -17,8 +17,8 @@ def load(context, filepath):
         me = bpy.data.meshes.new("{}_mesh_{}".format(sia_file.name.lower(), i))
         for material in mesh.materials:
             material.name = material.name.decode('utf-8', "replace")
-            for texture in material.textures:
-                texture.name = texture.name.decode('utf-8', "replace")
+            # for texture in material.textures:
+                # texture.name = texture.name.decode('utf-8', "replace")
             if material.name not in materials:
                 materials[material.name] = bpy.data.materials.new(
                     material.name)

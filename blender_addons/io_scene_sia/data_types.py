@@ -2,6 +2,7 @@ from enum import Enum
 import sys
 from io import BufferedReader
 from . import read_utils
+from . import write_utils
 
 class Bitfield():
     def __init__(self):
@@ -36,13 +37,16 @@ class Model:
 
         
 class BoundingBox:
-    def __init__(self):
-        self.max_x = sys.float_info.min
-        self.max_y = sys.float_info.min
-        self.max_z = sys.float_info.min
-        self.min_x = sys.float_info.max
-        self.min_y = sys.float_info.max
-        self.min_z = sys.float_info.max
+    float_min = sys.float_info.min
+    float_max = sys.float_info.max
+    def __init__(self, min_x=float_max, min_y=float_max, min_z=float_max,
+                 max_x=float_min, max_y=float_min, max_z=float_min):
+        self.min_x = min_x
+        self.min_y = min_y
+        self.min_z = min_z
+        self.max_x = max_x
+        self.max_y = max_y
+        self.max_z = max_z
 
     def update_with_vector(self, v):
         self.min_x = min(self.min_x, v.x)
@@ -55,14 +59,23 @@ class BoundingBox:
 
     @staticmethod
     def read_from_file(sia_file: BufferedReader):
-        bounding_box = BoundingBox()
-        bounding_box.min_x = read_utils.read_f32(sia_file)
-        bounding_box.min_y = read_utils.read_f32(sia_file)
-        bounding_box.min_z = read_utils.read_f32(sia_file)
-        bounding_box.max_x = read_utils.read_f32(sia_file)
-        bounding_box.max_y = read_utils.read_f32(sia_file)
-        bounding_box.max_z = read_utils.read_f32(sia_file)
-        return bounding_box
+        return BoundingBox(
+            read_utils.read_f32(sia_file),
+            read_utils.read_f32(sia_file),
+            read_utils.read_f32(sia_file),
+            read_utils.read_f32(sia_file),
+            read_utils.read_f32(sia_file),
+            read_utils.read_f32(sia_file)
+        )
+
+    def write(self, file):
+        write_utils.write_f32(file, self.min_x)
+        write_utils.write_f32(file, self.min_y)
+        write_utils.write_f32(file, self.min_z)
+
+        write_utils.write_f32(file, self.max_x)
+        write_utils.write_f32(file, self.max_y)
+        write_utils.write_f32(file, self.max_z)
 
 
 class Mesh:
@@ -134,15 +147,19 @@ def read_triangle_u16(file):
     )
 
 class Texture:
-    def __init__(self):
-        self.id = 0
-        self.name = ""
+    def __init__(self, id=0, name=""):
+        self.id = id
+        self.name = NameError
 
+    def write(self, file):
+        write_utils.write_u8(file, self.id)
+        write_utils.write_string(file, self.name)
+        
 
 class Material:
-    def __init__(self):
-        self.name = ""
-        self.kind = ""
+    def __init__(self, name="", kind=""):
+        self.name = name
+        self.kind = kind
         self.textures = []
 
         

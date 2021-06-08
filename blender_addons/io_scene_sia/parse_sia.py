@@ -45,28 +45,23 @@ def load(path: str):
         model.bounding_box = data_types.BoundingBox.read_from_file(sia_file)
 
         objects_num = read_utils.read_u32(sia_file)
-        print("objects_num: ", objects_num)
 
         for _ in range(objects_num):
             mesh = data_types.Mesh()
 
             read_utils.skip(sia_file, 4)  # Been 0 when I've looked
             mesh.vertices_num = read_utils.read_u32(sia_file)
-            print("mesh.vertices_num: ", mesh.vertices_num)
 
             read_utils.skip(sia_file, 4)  # Been 0 when I've looked
             # Number of triangles when divided by 3
             mesh.triangles_num = int(read_utils.read_u32(sia_file) / 3)
-            print("mesh.triangles_num: ", mesh.triangles_num)
 
             mesh.id = read_utils.read_u32(sia_file)
-            print("mesh.id: ", mesh.id)
             read_utils.skip(sia_file, 8)
 
             model.meshes[mesh.id] = mesh
 
         meshes_num = read_utils.read_u32(sia_file)
-        print("meshes_num: ", meshes_num)
         # After changing these to zero mesh is still there,
         # but the lighting has changed, interesting.
         # well, when exporting my own mesh, having these at 0 made it crash.
@@ -78,15 +73,18 @@ def load(path: str):
             material_name = read_utils.read_string(sia_file)
             materials_num = read_utils.read_u8(sia_file)
             for _ in range(materials_num):
-                material = data_types.Material()
-                material.kind = read_utils.read_string(sia_file)
-                material.name = material_name
+                material = data_types.Material(
+                    material_name,
+                    read_utils.read_string(sia_file)
+                )
                 texture_num = read_utils.read_u8(sia_file)
                 for _ in range(texture_num):
-                    texture = data_types.Texture()
-                    texture.id = read_utils.read_u8(sia_file)
-                    texture.name = read_utils.read_string(sia_file)
+                    texture = data_types.Texture(
+                        read_utils.read_u8(sia_file),
+                        read_utils.read_string(sia_file)
+                    )
                     material.textures.append(texture)
+
                 mesh.materials.append(material)
 
             if i != meshes_num - 1:
@@ -96,23 +94,12 @@ def load(path: str):
         read_utils.skip(sia_file, 64)
 
         vertices_total_num = read_utils.read_u32(sia_file)
-        print("vertices_total_num: ", vertices_total_num)
 
         # There seems to be only 10 bits checked, so maybe it's a u16 instead,
         # and the other 16 bits are something else
         # could any of these be vertex color?, cause that would be handy
         model.settings = data_types.Bitfield.from_number(read_utils.read_u32(sia_file))
-        print("model.settings[0]: ", model.settings[0])
-        print("model.settings[1]: ", model.settings[1])
-        print("model.settings[2]: ", model.settings[2])
-        print("model.settings[3]: ", model.settings[3])
-        print("model.settings[4]: ", model.settings[4])
-        print("model.settings[5]: ", model.settings[5])
-        print("model.settings[6]: ", model.settings[6])
-        print("model.settings[7]: ", model.settings[7])
-        print("model.settings[8]: ", model.settings[8])
-        print("model.settings[9]: ", model.settings[9])        
-        
+
         # Result so far:
         # 1 and 2 Always checked, normal and position I think
         # 3 I think this is uv, also always checked
@@ -123,11 +110,9 @@ def load(path: str):
         # 9 20 Read bits
         # 10 Read 4 bits, seems strange
 
-        print("Before reading vertices: ", sia_file.tell())
         for i in range(meshes_num):
             mesh = model.meshes.get(i)
 
-            print("mesh.vertices: ", mesh.vertices_num)
             for _ in range(mesh.vertices_num):
                 position, normal, uv = (None, None, None)
                 if model.settings[0]:
@@ -168,13 +153,9 @@ def load(path: str):
 
                 mesh.vertices.append(data_types.Vertex(position, normal, uv))
 
-            print("Num vertices read: ", len(mesh.vertices))
 
-        print("Before number_of_triangles: ", sia_file.tell())
         number_of_triangles = int(read_utils.read_u32(sia_file) / 3) # This is how many indecies there is,
-        print("number_of_triangles: ", number_of_triangles)
         # then it reads through those, maybe something to consider changing in mine.
-
         for i in range(meshes_num):
             mesh = model.meshes.get(i)
             for _ in range(mesh.triangles_num):

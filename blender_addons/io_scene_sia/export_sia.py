@@ -148,13 +148,7 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
 
         write_utils.write_f32(file, max(model.bounding_box.max_x, max(model.bounding_box.max_y, model.bounding_box.max_z)))
 
-        write_utils.write_f32(file, model.bounding_box.min_x)
-        write_utils.write_f32(file, model.bounding_box.min_y)
-        write_utils.write_f32(file, model.bounding_box.min_z)
-
-        write_utils.write_f32(file, model.bounding_box.max_x)
-        write_utils.write_f32(file, model.bounding_box.max_y)
-        write_utils.write_f32(file, model.bounding_box.max_z)
+        model.bounding_box.write(file)
 
         write_utils.write_u32(file, len(model.meshes))
 
@@ -166,16 +160,8 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
             write_utils.write_u32(file, mesh.triangles_num * 3)
 
             write_utils.write_u32(file, mesh_id)
-            write_utils.write_u8(file, 255) # Did not see any difference when setting it to 0
-            write_utils.write_u8(file, 255) # Did not see any difference when setting it to 0
-            write_utils.write_u8(file, 255) # Did not see any difference when setting it to 0
-            write_utils.write_u8(file, 255) # Setting it to zero made it crash
-            write_utils.write_u8(file, 255) # Did not see any difference when setting it to 0
-            write_utils.write_u8(file, 255) # Did not see any difference when setting it to 0
-            write_utils.write_u8(file, 255) # Did not see any difference when setting it to 0
-            write_utils.write_u8(file, 255) # Setting it to zero made it crash
-            # for _ in range(0, 8):
-            #     write_utils.write_u8(file, 255)
+            # Setting byte 4 and 8 to 0, made it crash, no noticable difference when changing the others
+            write_utils.write_full_bytes(file, 8)
 
         write_utils.write_u32(file, len(model.meshes))
 
@@ -184,7 +170,7 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
         # TODO: When exporting I want to split the materials on a mesh into their
         # own mesh and export that, unless I can do multiple materials without it?
         # since I want to do different tileable materials and such.
-        # like, is there any data when I read/write the faces which could be the material index?
+        # when I read in the meshes, they seem to be split per material
         for (mesh_id, mesh) in model.meshes.items():
             write_utils.write_string(file, mesh.materials[0].name)
             write_utils.write_u8(file, len(mesh.materials))
@@ -192,8 +178,7 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
                 write_utils.write_string(file, material.kind)
                 write_utils.write_u8(file, len(material.textures))
                 for texture in material.textures:
-                    write_utils.write_u8(file, texture.id)
-                    write_utils.write_string(file, texture.name)
+                    texture.write(file)
 
             if mesh_id != len(model.meshes) - 1:
                 write_utils.write_zeros(file, 80)

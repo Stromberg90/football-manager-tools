@@ -50,6 +50,11 @@ def write_triangle_u16(file, triangle):
     write_u16(file, triangle.index2)
     write_u16(file, triangle.index3)
 
-
+    
 def write_zeros(file, n):
     file.write(bytearray(n))
+
+
+def write_full_bytes(file, n):
+    for _ in range(0, n):
+        write_u8(file, 255)
