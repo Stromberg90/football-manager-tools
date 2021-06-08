@@ -30,7 +30,6 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
     with open(filepath, "wb") as file:
         # TODO: Setting for configuring the base path like: C:\Users\%USER%\Documents\Sports Interactive\Football Manager 2021
         # then on export it would cut away that part of the path to make relative filepaths.
-        # TODO: Break these into smaller more modular functions, like writing a vertex could be in write_utils
         if use_selection:
             context_objects = context.selected_objects
         else:
@@ -142,48 +141,48 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
 
         file.write(pack('<I', 35))
 
-        write_utils.write_string(file, model.name)
+        write_utils.string(file, model.name)
 
-        write_utils.write_zeros(file, 12)
+        write_utils.zeros(file, 12)
 
-        write_utils.write_f32(file, max(model.bounding_box.max_x, max(model.bounding_box.max_y, model.bounding_box.max_z)))
+        write_utils.f32(file, max(model.bounding_box.max_x, max(model.bounding_box.max_y, model.bounding_box.max_z)))
 
         model.bounding_box.write(file)
 
-        write_utils.write_u32(file, len(model.meshes))
+        write_utils.u32(file, len(model.meshes))
 
         for (mesh_id, mesh) in model.meshes.items():
-            write_utils.write_zeros(file, 4)
-            write_utils.write_u32(file, mesh.vertices_num)
+            write_utils.zeros(file, 4)
+            write_utils.u32(file, mesh.vertices_num)
 
-            write_utils.write_zeros(file, 4)
-            write_utils.write_u32(file, mesh.triangles_num * 3)
+            write_utils.zeros(file, 4)
+            write_utils.u32(file, mesh.triangles_num * 3)
 
-            write_utils.write_u32(file, mesh_id)
+            write_utils.u32(file, mesh_id)
             # Setting byte 4 and 8 to 0, made it crash, no noticable difference when changing the others
-            write_utils.write_full_bytes(file, 8)
+            write_utils.full_bytes(file, 8)
 
-        write_utils.write_u32(file, len(model.meshes))
+        write_utils.u32(file, len(model.meshes))
 
-        write_utils.write_zeros(file, 16)
+        write_utils.zeros(file, 16)
 
         # TODO: When exporting I want to split the materials on a mesh into their
         # own mesh and export that, unless I can do multiple materials without it?
         # since I want to do different tileable materials and such.
         # when I read in the meshes, they seem to be split per material
         for (mesh_id, mesh) in model.meshes.items():
-            write_utils.write_string(file, mesh.materials[0].name)
-            write_utils.write_u8(file, len(mesh.materials))
+            write_utils.string(file, mesh.materials[0].name)
+            write_utils.u8(file, len(mesh.materials))
             for material in mesh.materials:
-                write_utils.write_string(file, material.kind)
-                write_utils.write_u8(file, len(material.textures))
+                write_utils.string(file, material.kind)
+                write_utils.u8(file, len(material.textures))
                 for texture in material.textures:
                     texture.write(file)
 
             if mesh_id != len(model.meshes) - 1:
-                write_utils.write_zeros(file, 80)
+                write_utils.zeros(file, 80)
 
-        write_utils.write_zeros(file, 64)
+        write_utils.zeros(file, 64)
 
         vertices_total_num = 0
         number_of_triangles = 0
@@ -191,38 +190,38 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
             vertices_total_num += mesh.vertices_num
             number_of_triangles += mesh.triangles_num
 
-        write_utils.write_u32(file, vertices_total_num)
+        write_utils.u32(file, vertices_total_num)
 
         model.settings = data_types.Bitfield()
         model.settings[0] = True
         model.settings[1] = True
         model.settings[2] = True
-        write_utils.write_u32(file, model.settings.number())
+        write_utils.u32(file, model.settings.number())
 
         for (mesh_id, mesh) in model.meshes.items():
             for vertex in mesh.vertices:
                 if model.settings[0]:
-                    write_utils.write_vector3(file, vertex.position)
+                    write_utils.vector3(file, vertex.position)
                 if model.settings[1]:
-                    write_utils.write_vector3(file, vertex.normal)
+                    write_utils.vector3(file, vertex.normal)
                 if model.settings[2]:
-                    write_utils.write_vector2(file, vertex.uv)
+                    write_utils.vector2(file, vertex.uv)
 
-        write_utils.write_u32(file, number_of_triangles * 3)
+        write_utils.u32(file, number_of_triangles * 3)
 
         for (mesh_id, mesh) in model.meshes.items():
             for triangle in mesh.triangles:
                 if vertices_total_num > 65535:
-                    write_utils.write_triangle_u32(file, triangle)
+                    triangle.write_u32(file)
                 else:
-                    write_utils.write_triangle_u16(file, triangle)
+                    triangle.write_u16(file)
 
-        write_utils.write_u32(file, 0)  # some_number
-        write_utils.write_u32(file, 0)  # some_number2
+        write_utils.u32(file, 0)  # some_number
+        write_utils.u32(file, 0)  # some_number2
 
-        write_utils.write_u8(file, 0)  # num
+        write_utils.u8(file, 0)  # num
 
-        write_utils.write_u32(file, 0)  # instances
+        write_utils.u32(file, 0)  # instances
 
         file.write(b"EHSM")
 

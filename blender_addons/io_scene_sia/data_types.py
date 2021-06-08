@@ -60,22 +60,22 @@ class BoundingBox:
     @staticmethod
     def read_from_file(sia_file: BufferedReader):
         return BoundingBox(
-            read_utils.read_f32(sia_file),
-            read_utils.read_f32(sia_file),
-            read_utils.read_f32(sia_file),
-            read_utils.read_f32(sia_file),
-            read_utils.read_f32(sia_file),
-            read_utils.read_f32(sia_file)
+            read_utils.f32(sia_file),
+            read_utils.f32(sia_file),
+            read_utils.f32(sia_file),
+            read_utils.f32(sia_file),
+            read_utils.f32(sia_file),
+            read_utils.f32(sia_file)
         )
 
     def write(self, file):
-        write_utils.write_f32(file, self.min_x)
-        write_utils.write_f32(file, self.min_y)
-        write_utils.write_f32(file, self.min_z)
+        write_utils.f32(file, self.min_x)
+        write_utils.f32(file, self.min_y)
+        write_utils.f32(file, self.min_z)
 
-        write_utils.write_f32(file, self.max_x)
-        write_utils.write_f32(file, self.max_y)
-        write_utils.write_f32(file, self.max_z)
+        write_utils.f32(file, self.max_x)
+        write_utils.f32(file, self.max_y)
+        write_utils.f32(file, self.max_z)
 
 
 class Mesh:
@@ -95,8 +95,8 @@ class Vector2:
 
         
 def read_vector2(file):
-    x = read_utils.read_f32(file)
-    y = read_utils.read_f32(file)
+    x = read_utils.f32(file)
+    y = read_utils.f32(file)
     return Vector2(x, y)
 
 
@@ -108,9 +108,9 @@ class Vector3:
 
         
 def read_vector3(file):
-    x = read_utils.read_f32(file)
-    y = read_utils.read_f32(file)
-    z = read_utils.read_f32(file)
+    x = read_utils.f32(file)
+    y = read_utils.f32(file)
+    z = read_utils.f32(file)
     return Vector3(x, y, z)
 
 
@@ -130,21 +130,32 @@ class Triangle:
     def max(self):
         return max(self.index1, self.index2, self.index3)
 
-    
-def read_triangle_u32(file):
-    return Triangle(
-        read_utils.read_u32(file),
-        read_utils.read_u32(file),
-        read_utils.read_u32(file)
-    )
+    @staticmethod
+    def read_u32(file):
+        return Triangle(
+            read_utils.u32(file),
+            read_utils.u32(file),
+            read_utils.u32(file)
+        )
+
+    @staticmethod
+    def read_u16(file):
+        return Triangle(
+            read_utils.u16(file),
+            read_utils.u16(file),
+            read_utils.u16(file)
+        )
+
+    def write_u32(self, file):
+        write_utils.u32(file, self.index1)
+        write_utils.u32(file, self.index2)
+        write_utils.u32(file, self.index3)
 
 
-def read_triangle_u16(file):
-    return Triangle(
-        read_utils.read_u16(file),
-        read_utils.read_u16(file),
-        read_utils.read_u16(file)
-    )
+    def write_u16(self, file):
+        write_utils.u16(file, self.index1)
+        write_utils.u16(file, self.index2)
+        write_utils.u16(file, self.index3)
 
 class Texture:
     def __init__(self, id=0, name=""):
@@ -152,8 +163,8 @@ class Texture:
         self.name = NameError
 
     def write(self, file):
-        write_utils.write_u8(file, self.id)
-        write_utils.write_string(file, self.name)
+        write_utils.u8(file, self.id)
+        write_utils.string(file, self.name)
         
 
 class Material:
