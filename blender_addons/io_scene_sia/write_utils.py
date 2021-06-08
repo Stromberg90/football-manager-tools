@@ -38,7 +38,7 @@ def write_vector2(file, vec):
     write_f32(file, vec.x)
     write_f32(file, vec.y)
 
-    
+
 def write_triangle_u32(file, triangle):
     write_u32(file, triangle.index1)
     write_u32(file, triangle.index2)

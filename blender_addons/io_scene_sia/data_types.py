@@ -109,29 +109,29 @@ class Vertex:
 
 
 class Triangle:
-    def __init__(self):
-        self.index1 = 0
-        self.index2 = 0
-        self.index3 = 0
+    def __init__(self, i1, i2, i3):
+        self.index1 = i1
+        self.index2 = i2
+        self.index3 = i3
 
     def max(self):
         return max(self.index1, self.index2, self.index3)
 
     
 def read_triangle_u32(file):
-    triangle = Triangle()
-    triangle.index1 = read_utils.read_u32(file)
-    triangle.index2 = read_utils.read_u32(file)
-    triangle.index3 = read_utils.read_u32(file)
-    return triangle
+    return Triangle(
+        read_utils.read_u32(file),
+        read_utils.read_u32(file),
+        read_utils.read_u32(file)
+    )
 
 
 def read_triangle_u16(file):
-    triangle = Triangle()
-    triangle.index1 = read_utils.read_u16(file)
-    triangle.index2 = read_utils.read_u16(file)
-    triangle.index3 = read_utils.read_u16(file)
-    return triangle
+    return Triangle(
+        read_utils.read_u16(file),
+        read_utils.read_u16(file),
+        read_utils.read_u16(file)
+    )
 
 class Texture:
     def __init__(self):

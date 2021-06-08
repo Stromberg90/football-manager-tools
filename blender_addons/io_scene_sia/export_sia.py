@@ -27,24 +27,14 @@ def triangulate(me):
 
 
 def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection=False):
-    def rvec3d(v):
-        return round(v[0], 6), round(v[1], 6), round(v[2], 6)
-
-    def rvec2d(v):
-        return round(v[0], 6), round(v[1], 6)
-
     with open(filepath, "wb") as file:
         # TODO: Setting for configuring the base path like: C:\Users\%USER%\Documents\Sports Interactive\Football Manager 2021
         # then on export it would cut away that part of the path to make relative filepaths.
-        scene = context.scene
+        # TODO: Break these into smaller more modular functions, like writing a vertex could be in write_utils
         if use_selection:
             context_objects = context.selected_objects
         else:
             context_objects = context.view_layer.objects
-        if use_selection:
-            data_seq = context.selected_objects
-        else:
-            data_seq = scene.objects
 
         global_matrix = axis_conversion(
             to_forward=axis_forward,
@@ -110,12 +100,10 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
                     v = mesh_verts[vidx]
 
                     normal = v.normal[:]
-                    normal_key = rvec3d(normal)
 
                     uvcoord = uv[j][0], ((uv[j][1] * - 1) + 1)
-                    uvcoord_key = rvec2d(uvcoord)
 
-                    key = normal_key, uvcoord_key
+                    key = normal, uvcoord
 
                     vdict_local = vdict[vidx]
                     pf_vidx = vdict_local.get(key)
@@ -129,21 +117,18 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
 
             # TODO: Move this inline into the loop above
             for index, normal, uv_coords in ply_verts:
-                vertex = data_types.Vertex()
                 vert = mesh_verts[index]
-                vertex.position = data_types.Vector3(vert.co.x, vert.co.y, vert.co.z)
-                vertex.normal = data_types.Vector3(normal[0], normal[1], normal[2])
-                vertex.uv = data_types.Vector2(uv_coords[0], uv_coords[1])
+                vertex = data_types.Vertex(
+                    data_types.Vector3(*vert.co[:]),
+                    data_types.Vector3(*normal),
+                    data_types.Vector2(*uv_coords)
+                )
                 model.bounding_box.update_with_vector(vertex.position)
                 sia_mesh.vertices.append(vertex)
 
             # TODO: Move this inline into the loop above
             for pf in ply_faces:
-                triangle = data_types.Triangle()
-                triangle.index1 = pf[0]
-                triangle.index2 = pf[1]
-                triangle.index3 = pf[2]
-                sia_mesh.triangles.append(triangle)
+                sia_mesh.triangles.append(data_types.Triangle(*pf))
 
             # TODO: These don't need to be fields, it can compute this when writing it.
             sia_mesh.vertices_num = len(sia_mesh.vertices)
