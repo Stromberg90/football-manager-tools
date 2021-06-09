@@ -138,16 +138,17 @@ def load(path: str):
 
                 if model.settings[5]:
                     read_utils.skip(sia_file, 16)
-
+                    
                 if model.settings[6]:
                     read_utils.skip(sia_file, 8)
                     # |---> These two are probably not correct
+                    
                 if model.settings[7]:
                     read_utils.skip(sia_file, 12)
-
+                    
                 if model.settings[8]:
                     read_utils.skip(sia_file, 20)
-
+                    
                 if model.settings[9]:
                     read_utils.skip(sia_file, 4)
 

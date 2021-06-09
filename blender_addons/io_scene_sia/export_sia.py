@@ -164,10 +164,13 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
 
         write_utils.u32(file, len(model.meshes))
 
-        write_utils.zeros(file, 16)
+        for byte in [59, 194, 144, 210]:
+            write_utils.u8(file, byte)
 
-        # TODO: When exporting I want to split the materials on a mesh into their
-        # own mesh and export that, unless I can do multiple materials without it?
+        write_utils.zeros(file, 4)
+        write_utils.full_bytes(file, 4)
+        write_utils.zeros(file, 4)
+
         # since I want to do different tileable materials and such.
         # when I read in the meshes, they seem to be split per material
         for (mesh_id, mesh) in model.meshes.items():
@@ -196,6 +199,8 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
         model.settings[0] = True
         model.settings[1] = True
         model.settings[2] = True
+        model.settings[5] = True
+        model.settings[9] = True
         write_utils.u32(file, model.settings.number())
 
         for (mesh_id, mesh) in model.meshes.items():
@@ -206,6 +211,14 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
                     write_utils.vector3(file, vertex.normal)
                 if model.settings[2]:
                     write_utils.vector2(file, vertex.uv)
+                if model.settings[5]:
+                    # So both this and model.settings[1] has to write out data for it to look normal
+                    # right now I write out normal data in both, but that can't be correct, maybe normals and tangents?
+                    write_utils.vector3(file, vertex.normal)
+                    write_utils.f32(file, 1)
+                if model.settings[9]:
+                    # When I've seen this it has been all F's
+                    write_utils.full_bytes(file, 4)
 
         write_utils.u32(file, number_of_triangles * 3)
 
@@ -219,7 +232,7 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
         write_utils.u32(file, 0)  # some_number
         write_utils.u32(file, 0)  # some_number2
 
-        write_utils.u8(file, 0)  # num
+        write_utils.u8(file, 0)  # num, change this to non-zero without anything else written after, to eat ram.
 
         write_utils.u32(file, 0)  # instances
 
