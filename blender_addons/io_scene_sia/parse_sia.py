@@ -62,12 +62,10 @@ def load(path: str):
             model.meshes[mesh.id] = mesh
 
         meshes_num = read_utils.u32(sia_file)
-        # After changing these to zero mesh is still there,
-        # but the lighting has changed, interesting.
-        # well, when exporting my own mesh, having these at 0 made it crash.
-        read_utils.skip(sia_file, 16)
 
         for i in range(meshes_num):
+            read_utils.skip(sia_file, 16)
+
             mesh = model.meshes.get(i)
             assert(mesh is not None)
             material_name = read_utils.string(sia_file)
@@ -87,11 +85,7 @@ def load(path: str):
 
                 mesh.materials.append(material)
 
-            if i != meshes_num - 1:
-                read_utils.skip(sia_file, 80)
-
-        # Changed all of these to 0, mesh still showed up and looked normal
-        read_utils.skip(sia_file, 64)
+            read_utils.skip(sia_file, 64)
 
         vertices_total_num = read_utils.u32(sia_file)
 

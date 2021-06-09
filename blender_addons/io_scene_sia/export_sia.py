@@ -164,16 +164,14 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
 
         write_utils.u32(file, len(model.meshes))
 
-        for byte in [59, 194, 144, 210]:
-            write_utils.u8(file, byte)
-
-        write_utils.zeros(file, 4)
-        write_utils.full_bytes(file, 4)
-        write_utils.zeros(file, 4)
-
-        # since I want to do different tileable materials and such.
-        # when I read in the meshes, they seem to be split per material
         for (mesh_id, mesh) in model.meshes.items():
+            for byte in [59, 194, 144, 210]:
+                write_utils.u8(file, byte)
+
+            write_utils.zeros(file, 4)
+            write_utils.full_bytes(file, 4)
+            write_utils.zeros(file, 4)
+
             write_utils.string(file, mesh.materials[0].name)
             write_utils.u8(file, len(mesh.materials))
             for material in mesh.materials:
@@ -182,10 +180,7 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
                 for texture in material.textures:
                     texture.write(file)
 
-            if mesh_id != len(model.meshes) - 1:
-                write_utils.zeros(file, 80)
-
-        write_utils.zeros(file, 64)
+            write_utils.zeros(file, 64)
 
         vertices_total_num = 0
         number_of_triangles = 0
