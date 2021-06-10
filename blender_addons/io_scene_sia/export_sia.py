@@ -75,7 +75,7 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
                 sia_material = data_types.Material()
                 sia_material.name = material.name
                 sia_material.kind = "base"
-                for texture in [("stadiums/textures/no_stand/empty_corner_concrete_02_[al]", 0), ("stadiums/textures/no_stand/empty_corner_concrete_02_[ro]_[me]_[ao]", 1), ("stadiums/textures/no_stand/empty_corner_concrete_02_[no]", 2), ("stadiums/textures/no_stand/empty_corner_concrete_02_[ma]", 5)]:
+                for texture in [("mesh/dugout/dugout_[al]", 0), ("mesh/dugout/dugout_[ro]_[me]_[ao]", 1), ("mesh/dugout/dugout_[no]", 2), ("mesh/dugout/dugout_[ma]", 5)]:
                     sia_texture = data_types.Texture()
                     sia_texture.name = texture[0]
                     sia_texture.id = texture[1]

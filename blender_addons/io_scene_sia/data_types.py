@@ -161,7 +161,7 @@ class Triangle:
 class Texture:
     def __init__(self, id=0, name=""):
         self.id = id
-        self.name = NameError
+        self.name = name
 
     def write(self, file):
         write_utils.u8(file, self.id)

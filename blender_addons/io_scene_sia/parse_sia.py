@@ -122,6 +122,7 @@ def load(path: str):
                 else:
                     uv = data_types.Vector2(0, 0)
                 if model.settings[3]:
+                    # Looked, don't know what it is yet.
                     read_utils.skip(sia_file, 8)
                 if model.settings[4]:
                     read_utils.skip(sia_file, 8)
@@ -129,11 +130,13 @@ def load(path: str):
                     tangent = data_types.read_vector3(sia_file)
                     read_utils.skip(sia_file, 4)
                 if model.settings[6]:
+                    # Thought this and [7] could be second uv sets, but the data don't quite make sense for that.
                     read_utils.skip(sia_file, 8)
                     # |---> These two are probably not correct
                 if model.settings[7]:
                     read_utils.skip(sia_file, 12)
                 if model.settings[8]:
+                    # Printed these as floats, they where very small values(pretty much 0), so unsure what this could be.
                     read_utils.skip(sia_file, 20)
                 if model.settings[9]:
                     read_utils.skip(sia_file, 4)
