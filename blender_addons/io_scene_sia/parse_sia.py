@@ -113,36 +113,28 @@ def load(path: str):
                     position = data_types.read_vector3(sia_file)
                 else:
                     raise SiaParseError("Missing position flag")
-
                 if model.settings[1]:
                     normal = data_types.read_vector3(sia_file)
                 else:
                     raise SiaParseError("Missing normal flag")
-
                 if model.settings[2]:  # First uv set flag
                     uv = data_types.read_vector2(sia_file)
                 else:
                     uv = data_types.Vector2(0, 0)
-
                 if model.settings[3]:
                     read_utils.skip(sia_file, 8)
-
                 if model.settings[4]:
                     read_utils.skip(sia_file, 8)
-
                 if model.settings[5]:
-                    read_utils.skip(sia_file, 16)
-                    
+                    tangent = data_types.read_vector3(sia_file)
+                    read_utils.skip(sia_file, 4)
                 if model.settings[6]:
                     read_utils.skip(sia_file, 8)
                     # |---> These two are probably not correct
-                    
                 if model.settings[7]:
                     read_utils.skip(sia_file, 12)
-                    
                 if model.settings[8]:
                     read_utils.skip(sia_file, 20)
-                    
                 if model.settings[9]:
                     read_utils.skip(sia_file, 4)
 

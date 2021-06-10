@@ -115,10 +115,11 @@ def read_vector3(file):
 
 
 class Vertex:
-    def __init__(self, position=Vector3(), normal=Vector3(), uv=Vector2()):
+    def __init__(self, position=Vector3(), normal=Vector3(), uv=Vector2(), tangent=Vector3()):
         self.position = position
         self.normal = normal
         self.uv = uv
+        self.tangent = tangent
 
 
 class Triangle:

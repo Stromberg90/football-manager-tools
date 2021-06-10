@@ -65,7 +65,8 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
             if mat.is_negative:
                 mesh.flip_normals()
 
-            mesh.calc_normals_split()
+            # Since this is slow, it only needs to do this is export tangent is checked.
+            mesh.calc_tangents()
 
             active_uv_layer = mesh.uv_layers.active.data
 
@@ -95,11 +96,14 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
                     for l in range(f.loop_start, f.loop_start + f.loop_total)
                 ]
                 pf = ply_faces[i]
+                normals = []
+                tangents = []
+                for i, li in enumerate(f.loop_indices):
+                    normals.append(mesh.loops[li].normal[:])
+                    tangents.append(mesh.loops[li].tangent[:])
                 for j, vidx in enumerate(f.vertices):
-                    v = mesh_verts[vidx]
-
-                    normal = v.normal[:]
-
+                    normal = normals[j]
+                    tangent = tangents[j]
                     uvcoord = uv[j][0], ((uv[j][1] * - 1) + 1)
 
                     key = normal, uvcoord
@@ -107,20 +111,21 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
                     vdict_local = vdict[vidx]
                     pf_vidx = vdict_local.get(key)
 
-                    if pf_vidx is None:  # Same as vdict_local.has_key(key)
+                    if pf_vidx is None:
                         pf_vidx = vdict_local[key] = vert_count
-                        ply_verts.append((vidx, normal, uvcoord))
+                        ply_verts.append((vidx, normal, uvcoord, tangent))
                         vert_count += 1
 
                     pf.append(pf_vidx)
 
             # TODO: Move this inline into the loop above
-            for index, normal, uv_coords in ply_verts:
+            for index, normal, uv_coords, tangent in ply_verts:
                 vert = mesh_verts[index]
                 vertex = data_types.Vertex(
                     data_types.Vector3(*vert.co[:]),
                     data_types.Vector3(*normal),
-                    data_types.Vector2(*uv_coords)
+                    data_types.Vector2(*uv_coords),
+                    data_types.Vector3(*tangent)
                 )
                 model.bounding_box.update_with_vector(vertex.position)
                 sia_mesh.vertices.append(vertex)
@@ -194,6 +199,7 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
         model.settings[0] = True
         model.settings[1] = True
         model.settings[2] = True
+        # If I set 5 to false, lighting still works.
         model.settings[5] = True
         model.settings[9] = True
         write_utils.u32(file, model.settings.number())
@@ -207,9 +213,8 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
                 if model.settings[2]:
                     write_utils.vector2(file, vertex.uv)
                 if model.settings[5]:
-                    # So both this and model.settings[1] has to write out data for it to look normal
-                    # right now I write out normal data in both, but that can't be correct, maybe normals and tangents?
-                    write_utils.vector3(file, vertex.normal)
+                    # Thought this could be tangents, but why is the one more value at the end then.
+                    write_utils.vector3(file, vertex.tangent)
                     write_utils.f32(file, 1)
                 if model.settings[9]:
                     # When I've seen this it has been all F's
