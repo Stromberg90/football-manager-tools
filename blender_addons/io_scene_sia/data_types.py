@@ -4,7 +4,8 @@ from io import BufferedReader
 from . import read_utils
 from . import write_utils
 
-class Bitfield():
+
+class Bitfield:
     def __init__(self):
         self.__bits = 0
 
@@ -26,7 +27,7 @@ class Bitfield():
         else:
             self.__bits != 1 << key
 
-            
+
 class Model:
     def __init__(self):
         self.name = ""
@@ -35,12 +36,20 @@ class Model:
         self.meshes = {}
         self.end_kind = None
 
-        
+
 class BoundingBox:
     float_min = sys.float_info.min
     float_max = sys.float_info.max
-    def __init__(self, min_x=float_max, min_y=float_max, min_z=float_max,
-                 max_x=float_min, max_y=float_min, max_z=float_min):
+
+    def __init__(
+        self,
+        min_x=float_max,
+        min_y=float_max,
+        min_z=float_max,
+        max_x=float_min,
+        max_y=float_min,
+        max_z=float_min,
+    ):
         self.min_x = min_x
         self.min_y = min_y
         self.min_z = min_z
@@ -65,7 +74,7 @@ class BoundingBox:
             read_utils.f32(sia_file),
             read_utils.f32(sia_file),
             read_utils.f32(sia_file),
-            read_utils.f32(sia_file)
+            read_utils.f32(sia_file),
         )
 
     def write(self, file):
@@ -93,7 +102,7 @@ class Vector2:
         self.x = x
         self.y = y
 
-        
+
 def read_vector2(file):
     x = read_utils.f32(file)
     y = read_utils.f32(file)
@@ -106,7 +115,7 @@ class Vector3:
         self.y = y
         self.z = z
 
-        
+
 def read_vector3(file):
     x = read_utils.f32(file)
     y = read_utils.f32(file)
@@ -115,7 +124,9 @@ def read_vector3(file):
 
 
 class Vertex:
-    def __init__(self, position=Vector3(), normal=Vector3(), uv=Vector2(), tangent=Vector3()):
+    def __init__(
+        self, position=Vector3(), normal=Vector3(), uv=Vector2(), tangent=Vector3()
+    ):
         self.position = position
         self.normal = normal
         self.uv = uv
@@ -134,17 +145,13 @@ class Triangle:
     @staticmethod
     def read_u32(file):
         return Triangle(
-            read_utils.u32(file),
-            read_utils.u32(file),
-            read_utils.u32(file)
+            read_utils.u32(file), read_utils.u32(file), read_utils.u32(file)
         )
 
     @staticmethod
     def read_u16(file):
         return Triangle(
-            read_utils.u16(file),
-            read_utils.u16(file),
-            read_utils.u16(file)
+            read_utils.u16(file), read_utils.u16(file), read_utils.u16(file)
         )
 
     def write_u32(self, file):
@@ -152,21 +159,39 @@ class Triangle:
         write_utils.u32(file, self.index2)
         write_utils.u32(file, self.index3)
 
-
     def write_u16(self, file):
         write_utils.u16(file, self.index1)
         write_utils.u16(file, self.index2)
         write_utils.u16(file, self.index3)
 
+
+class TextureKind(Enum):
+    Albedo = (0,)
+    RoughnessMetallicAmbientOcclusion = (1,)
+    Normal = (2,)
+    Mask = 5
+
+    @staticmethod
+    def from_u8(u8):
+        if u8 == 0:
+            return TextureKind.Albedo
+        elif u8 == 1:
+            return TextureKind.RoughnessMetallicAmbientOcclusion
+        elif u8 == 2:
+            return TextureKind.Normal
+        elif u8 == 5:
+            return TextureKind.Mask
+
+
 class Texture:
-    def __init__(self, id=0, name=""):
-        self.id = id
-        self.name = name
+    def __init__(self, kind=None, name=""):
+        self.kind = kind
+        self.path = name
 
     def write(self, file):
-        write_utils.u8(file, self.id)
-        write_utils.string(file, self.name)
-        
+        write_utils.u8(file, self.kind)
+        write_utils.string(file, self.path)
+
 
 class Material:
     def __init__(self, name="", kind=""):
@@ -174,7 +199,7 @@ class Material:
         self.kind = kind
         self.textures = []
 
-        
+
 class MeshType(Enum):
     RenderFlags = 2
     VariableLength = 8
@@ -214,7 +239,7 @@ class EndKindType(Enum):
     IsCompBanner = 2
 
 
-class EndKind():
+class EndKind:
     def __init__(self):
         self.type = None
         self.value = None

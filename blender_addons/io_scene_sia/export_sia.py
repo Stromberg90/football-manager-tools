@@ -19,6 +19,7 @@ from . import write_utils
 
 def triangulate(me):
     import bmesh
+
     bm = bmesh.new()
     bm.from_mesh(me)
     bmesh.ops.triangulate(bm, faces=bm.faces)
@@ -26,19 +27,20 @@ def triangulate(me):
     bm.free()
 
 
-def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection=False):
+def save(context: Any, filepath="", axis_forward="Y", axis_up="Z", use_selection=False):
     with open(filepath, "wb") as file:
-        # TODO: Setting for configuring the base path like: C:\Users\%USER%\Documents\Sports Interactive\Football Manager 2021
-        # then on export it would cut away that part of the path to make relative filepaths.
         if use_selection:
             context_objects = context.selected_objects
         else:
             context_objects = context.view_layer.objects
 
-        global_matrix = axis_conversion(
-            to_forward=axis_forward,
-            to_up=axis_up,
-        ).to_4x4() @ Matrix.Scale(1.0, 4)
+        global_matrix = (
+            axis_conversion(
+                to_forward=axis_forward,
+                to_up=axis_up,
+            ).to_4x4()
+            @ Matrix.Scale(1.0, 4)
+        )
 
         model = data_types.Model()
         model.bounding_box = data_types.BoundingBox()
@@ -75,10 +77,18 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
                 sia_material = data_types.Material()
                 sia_material.name = material.name
                 sia_material.kind = "base"
-                for texture in [("mesh/dugout/dugout_[al]", 0), ("mesh/dugout/dugout_[ro]_[me]_[ao]", 1), ("mesh/dugout/dugout_[no]", 2), ("mesh/dugout/dugout_[ma]", 5)]:
+                for texture in [
+                    ("mesh/dugout/dugout_[al]", data_types.TextureKind.Albedo),
+                    (
+                        "mesh/dugout/dugout_[ro]_[me]_[ao]",
+                        data_types.TextureKind.RoughnessMetallicAmbientOcclusion,
+                    ),
+                    ("mesh/dugout/dugout_[no]", data_types.TextureKind.Normal),
+                    ("mesh/dugout/dugout_[ma]", data_types.TextureKind.Mask),
+                ]:
                     sia_texture = data_types.Texture()
-                    sia_texture.name = texture[0]
-                    sia_texture.id = texture[1]
+                    sia_texture.path = texture[0]
+                    sia_texture.kind = texture[1]
                     sia_material.textures.append(sia_texture)
 
                 sia_mesh.materials.append(sia_material)
@@ -92,7 +102,8 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
             vert_count = 0
 
             for i, f in enumerate(mesh.polygons):
-                uv = [active_uv_layer[l].uv[:]
+                uv = [
+                    active_uv_layer[l].uv[:]
                     for l in range(f.loop_start, f.loop_start + f.loop_total)
                 ]
                 pf = ply_faces[i]
@@ -104,7 +115,7 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
                 for j, vidx in enumerate(f.vertices):
                     normal = normals[j]
                     tangent = tangents[j]
-                    uvcoord = uv[j][0], ((uv[j][1] * - 1) + 1)
+                    uvcoord = uv[j][0], ((uv[j][1] * -1) + 1)
 
                     key = normal, uvcoord
 
@@ -125,7 +136,7 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
                     data_types.Vector3(*vert.co[:]),
                     data_types.Vector3(*normal),
                     data_types.Vector2(*uv_coords),
-                    data_types.Vector3(*tangent)
+                    data_types.Vector3(*tangent),
                 )
                 model.bounding_box.update_with_vector(vertex.position)
                 sia_mesh.vertices.append(vertex)
@@ -144,13 +155,19 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
 
         file.write(b"SHSM")
 
-        file.write(pack('<I', 35))
+        file.write(pack("<I", 35))
 
         write_utils.string(file, model.name)
 
         write_utils.zeros(file, 12)
 
-        write_utils.f32(file, max(model.bounding_box.max_x, max(model.bounding_box.max_y, model.bounding_box.max_z)))
+        write_utils.f32(
+            file,
+            max(
+                model.bounding_box.max_x,
+                max(model.bounding_box.max_y, model.bounding_box.max_z),
+            ),
+        )
 
         model.bounding_box.write(file)
 
@@ -232,12 +249,14 @@ def save(context: Any, filepath="", axis_forward='Y', axis_up='Z', use_selection
         write_utils.u32(file, 0)  # some_number
         write_utils.u32(file, 0)  # some_number2
 
-        write_utils.u8(file, 0)  # num, change this to non-zero without anything else written after, to eat ram.
+        write_utils.u8(
+            file, 0
+        )  # num, change this to non-zero without anything else written after, to eat ram.
 
         write_utils.u32(file, 0)  # instances
 
         file.write(b"EHSM")
 
-        return {'FINISHED'}
+        return {"FINISHED"}
 
-    return {'CANCELED'}
+    return {"CANCELED"}

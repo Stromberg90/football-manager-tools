@@ -71,6 +71,8 @@ def load(path: str):
             material_name = read_utils.string(sia_file)
             materials_num = read_utils.u8(sia_file)
             for _ in range(materials_num):
+                # Not sure about this though, the material name seems to indicate
+                # what type of material it is aswell some times, so might be reversed
                 material = data_types.Material(
                     material_name,
                     read_utils.string(sia_file)
@@ -78,7 +80,7 @@ def load(path: str):
                 texture_num = read_utils.u8(sia_file)
                 for _ in range(texture_num):
                     texture = data_types.Texture(
-                        read_utils.u8(sia_file),
+                        data_types.TextureKind.from_u8(read_utils.u8(sia_file)),
                         read_utils.string(sia_file)
                     )
                     material.textures.append(texture)
@@ -130,11 +132,11 @@ def load(path: str):
                     tangent = data_types.read_vector3(sia_file)
                     read_utils.skip(sia_file, 4)
                 if model.settings[6]:
-                    # Thought this and [7] could be second uv sets, but the data don't quite make sense for that.
-                    read_utils.skip(sia_file, 8)
-                    # |---> These two are probably not correct
-                if model.settings[7]:
+                    # Thought this or [7] could be second uv sets, but the data don't quite make sense for that.
                     read_utils.skip(sia_file, 12)
+                    # seems like 6 and 7 are checked together, so one can read the bytes interchangeably.
+                if model.settings[7]:
+                    read_utils.skip(sia_file, 8)
                 if model.settings[8]:
                     # Printed these as floats, they where very small values(pretty much 0), so unsure what this could be.
                     read_utils.skip(sia_file, 20)

@@ -47,7 +47,7 @@ class ExportSIA(bpy.types.Operator, ExportHelper):
     def execute(self, context):
         from . import export_sia
 
-        return export_sia.save(context, self.filepath, self.axis_forward, self.axis_up)
+        return export_sia.save(context, self.filepath, self.axis_forward, self.axis_up, context.preferences.addons[__name__].preferences)
 
 
 class ImportSIA(bpy.types.Operator, ExportHelper):
@@ -66,12 +66,49 @@ class ImportSIA(bpy.types.Operator, ExportHelper):
     def execute(self, context):
         from . import import_sia
 
-        return import_sia.load(context, self.filepath)
+        return import_sia.load(context, self.filepath, context.preferences.addons[__name__].preferences)
 
+class IoSiaPreferences(bpy.types.AddonPreferences):
+    bl_idname = __name__
+    base_extracted_textures_path: StringProperty(
+        name="Base Extracted Textures Path",
+        description="Path to extracted from football manager base folder",
+        default="",
+        subtype="DIR_PATH"
+    )
+
+    base_textures_path: StringProperty(
+        name="Base Custom Textures Path",
+        description="Path to custom textures base folder",
+        default="",
+        subtype="DIR_PATH"
+    )
+
+    base_extracted_meshes_path: StringProperty(
+        name="Base Extracted Meshes Path",
+        description="Path to meshes from football manager base folder",
+        default="",
+        subtype="DIR_PATH"
+    )
+
+    base_meshes_path: StringProperty(
+        name="Base Custom Meshes Path",
+        description="Path to custom meshes base folder",
+        default="",
+        subtype="DIR_PATH"
+    )
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "base_extracted_textures_path")
+        layout.prop(self, "base_textures_path")
+        layout.prop(self, "base_extracted_meshes_path")
+        layout.prop(self, "base_meshes_path")
 
 classes = (
     ExportSIA,
     ImportSIA,
+    IoSiaPreferences
 )
 
 
