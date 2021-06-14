@@ -1,5 +1,6 @@
 if "bpy" in locals():
     import importlib
+
     if "export_sia" in locals():
         importlib.reload(export_sia)
     if "import_sia" in locals():
@@ -9,6 +10,7 @@ import bpy
 
 from bpy.props import (
     StringProperty,
+    BoolProperty,
 )
 
 from bpy_extras.io_utils import (
@@ -30,43 +32,60 @@ bl_info = {
     "tracker_url": "https://github.com/Stromberg90/football-manager-tools/issues",
 }
 
-@orientation_helper(axis_forward='Y', axis_up='Z')
+
+@orientation_helper(axis_forward="Y", axis_up="Z")
 class ExportSIA(bpy.types.Operator, ExportHelper):
     """Save a SIA File"""
 
     bl_idname = "export_scene.sia"
-    bl_label = 'Export SIA'
-    bl_options = {'PRESET'}
+    bl_label = "Export SIA"
+    bl_options = {"PRESET"}
 
     filename_ext = ".sia"
     filter_glob: StringProperty(
         default="*.sia",
-        options={'HIDDEN'},
+        options={"HIDDEN"},
+    )
+
+    use_selection: BoolProperty(
+        name="Selection Only",
+        description="Export selected objects only",
+        default=False,
     )
 
     def execute(self, context):
         from . import export_sia
 
-        return export_sia.save(context, self.filepath, self.axis_forward, self.axis_up, context.preferences.addons[__name__].preferences)
+        return export_sia.save(
+            context,
+            self.filepath,
+            context.preferences.addons[__name__].preferences,
+            self.axis_forward,
+            self.axis_up,
+            self.use_selection,
+        )
 
 
 class ImportSIA(bpy.types.Operator, ExportHelper):
     """Save a SIA File"""
 
     bl_idname = "import_scene.sia"
-    bl_label = 'Import SIA'
-    bl_options = {'PRESET'}
+    bl_label = "Import SIA"
+    bl_options = {"PRESET"}
 
     filename_ext = ".sia"
     filter_glob: StringProperty(
         default="*.sia",
-        options={'HIDDEN'},
+        options={"HIDDEN"},
     )
 
     def execute(self, context):
         from . import import_sia
 
-        return import_sia.load(context, self.filepath, context.preferences.addons[__name__].preferences)
+        return import_sia.load(
+            context, self.filepath, context.preferences.addons[__name__].preferences
+        )
+
 
 class IoSiaPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
@@ -74,28 +93,28 @@ class IoSiaPreferences(bpy.types.AddonPreferences):
         name="Base Extracted Textures Path",
         description="Path to extracted from football manager base folder",
         default="",
-        subtype="DIR_PATH"
+        subtype="DIR_PATH",
     )
 
     base_textures_path: StringProperty(
         name="Base Custom Textures Path",
         description="Path to custom textures base folder",
         default="",
-        subtype="DIR_PATH"
+        subtype="DIR_PATH",
     )
 
     base_extracted_meshes_path: StringProperty(
         name="Base Extracted Meshes Path",
         description="Path to meshes from football manager base folder",
         default="",
-        subtype="DIR_PATH"
+        subtype="DIR_PATH",
     )
 
     base_meshes_path: StringProperty(
         name="Base Custom Meshes Path",
         description="Path to custom meshes base folder",
         default="",
-        subtype="DIR_PATH"
+        subtype="DIR_PATH",
     )
 
     def draw(self, context):
@@ -105,21 +124,40 @@ class IoSiaPreferences(bpy.types.AddonPreferences):
         layout.prop(self, "base_extracted_meshes_path")
         layout.prop(self, "base_meshes_path")
 
-classes = (
-    ExportSIA,
-    ImportSIA,
-    IoSiaPreferences
-)
+
+class SIA_PT_export_include(bpy.types.Panel):
+    bl_space_type = "FILE_BROWSER"
+    bl_region_type = "TOOL_PROPS"
+    bl_label = "Include"
+    bl_parent_id = "FILE_PT_operator"
+
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+
+        return operator.bl_idname == "EXPORT_MESH_OT_sia"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
+        sfile = context.space_data
+        operator = sfile.active_operator
+
+        layout.prop(operator, "use_selection")
+
+
+classes = (ExportSIA, SIA_PT_export_include, ImportSIA, IoSiaPreferences)
 
 
 def menu_func_export(self, context):
-    self.layout.operator(ExportSIA.bl_idname,
-                         text="Football Manager 2021 Mesh (.sia)")
+    self.layout.operator(ExportSIA.bl_idname, text="Football Manager 2021 Mesh (.sia)")
 
 
 def menu_func_import(self, context):
-    self.layout.operator(ImportSIA.bl_idname,
-                         text="Football Manager 2021 Mesh (.sia)")
+    self.layout.operator(ImportSIA.bl_idname, text="Football Manager 2021 Mesh (.sia)")
 
 
 def register():

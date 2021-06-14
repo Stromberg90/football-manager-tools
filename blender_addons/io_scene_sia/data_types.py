@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import IntEnum
 import sys
 from io import BufferedReader
 from . import read_utils
@@ -165,22 +165,17 @@ class Triangle:
         write_utils.u16(file, self.index3)
 
 
-class TextureKind(Enum):
-    Albedo = (0,)
-    RoughnessMetallicAmbientOcclusion = (1,)
-    Normal = (2,)
+class TextureKind(IntEnum):
+    Albedo = 0
+    RoughnessMetallicAmbientOcclusion = 1
+    Normal = 2
     Mask = 5
 
     @staticmethod
     def from_u8(u8):
-        if u8 == 0:
-            return TextureKind.Albedo
-        elif u8 == 1:
-            return TextureKind.RoughnessMetallicAmbientOcclusion
-        elif u8 == 2:
-            return TextureKind.Normal
-        elif u8 == 5:
-            return TextureKind.Mask
+        for kind in TextureKind:
+            if kind == u8:
+                return kind
 
 
 class Texture:
@@ -189,7 +184,7 @@ class Texture:
         self.path = name
 
     def write(self, file):
-        write_utils.u8(file, self.kind)
+        write_utils.u8(file, int(self.kind))
         write_utils.string(file, self.path)
 
 
@@ -200,7 +195,7 @@ class Material:
         self.textures = []
 
 
-class MeshType(Enum):
+class MeshType(IntEnum):
     RenderFlags = 2
     VariableLength = 8
     BodyPart = 88
@@ -213,30 +208,21 @@ class MeshType(Enum):
 
     @staticmethod
     def from_u8(u8):
-        if u8 == 2:
-            return MeshType.RenderFlags
-        elif u8 == 8:
-            return MeshType.VariableLength
-        elif u8 == 88:
-            return MeshType.BodyPart
-        elif u8 == 152:
-            return MeshType.RearCap
-        elif u8 == 136:
-            return MeshType.Glasses
-        elif u8 == 216:
-            return MeshType.StadiumRoof
-        elif u8 == 232:
-            return MeshType.PlayerTunnel
-        elif u8 == 248:
-            return MeshType.SideCap
-        else:
-            return MeshType.Unknown
+        for mesh_type in MeshType:
+            if mesh_type == u8:
+                return mesh_type
 
 
-class EndKindType(Enum):
+class EndKindType(IntEnum):
     MeshType = 0
     IsBanner = 1
     IsCompBanner = 2
+
+    @staticmethod
+    def from_u8(u8):
+        for end_kind in EndKindType:
+            if end_kind == u8:
+                return end_kind
 
 
 class EndKind:

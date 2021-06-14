@@ -3,29 +3,30 @@ import os
 from . import data_types
 from . import read_utils
 
+
 class SiaParseError(Exception):
     pass
 
 
 def read_header(sia_file: BufferedReader):
     header = sia_file.read(4)
-    if header != b'SHSM':
-        raise SiaParseError(
-            "Expexted header SHSM, but found {}".format(header))
+    if header != b"SHSM":
+        raise SiaParseError("Expexted header SHSM, but found {}".format(header))
 
 
 def read_file_end(sia_file: BufferedReader, num: int):
     end = sia_file.read(4)
-    if end != b'EHSM':
+    if end != b"EHSM":
         raise SiaParseError(
             "Expected EHSM, but found {} at file byte position: {} num is {}".format(
-                end, sia_file.tell(), num))
+                end, sia_file.tell(), num
+            )
+        )
 
 
 def load(path: str):
     if not os.path.exists(path) or os.path.splitext(path)[1] != ".sia":
-        raise SiaParseError(
-            "{} does not exist or is not a valid sia file".format(path))
+        raise SiaParseError("{} does not exist or is not a valid sia file".format(path))
 
     with open(path, "rb") as sia_file:
         model = data_types.Model()
@@ -67,21 +68,22 @@ def load(path: str):
             read_utils.skip(sia_file, 16)
 
             mesh = model.meshes.get(i)
-            assert(mesh is not None)
+            assert mesh is not None
             material_name = read_utils.string(sia_file)
             materials_num = read_utils.u8(sia_file)
+            # materials_num is more like material variations it seems.
+            # max I've seen is 2 named static and degraded.
+            if materials_num != 1:
+                print("Material Num: {} In: {}".format(materials_num, path))
             for _ in range(materials_num):
-                # Not sure about this though, the material name seems to indicate
-                # what type of material it is aswell some times, so might be reversed
                 material = data_types.Material(
-                    material_name,
-                    read_utils.string(sia_file)
+                    material_name, read_utils.string(sia_file)
                 )
                 texture_num = read_utils.u8(sia_file)
                 for _ in range(texture_num):
                     texture = data_types.Texture(
                         data_types.TextureKind.from_u8(read_utils.u8(sia_file)),
-                        read_utils.string(sia_file)
+                        read_utils.string(sia_file),
                     )
                     material.textures.append(texture)
 
@@ -158,7 +160,10 @@ def load(path: str):
 
                 if triangle.max() > len(mesh.vertices) - 1:
                     raise SiaParseError(
-                        "Face index larger than available vertices\nFace Index: {}\nVertices Length: {}\n at file byte position: {}".format(triangle.max(), len(mesh.vertices), sia_file.tell()))
+                        "Face index larger than available vertices\nFace Index: {}\nVertices Length: {}\n at file byte position: {}".format(
+                            triangle.max(), len(mesh.vertices), sia_file.tell()
+                        )
+                    )
 
                 mesh.triangles.append(triangle)
 
@@ -173,40 +178,117 @@ def load(path: str):
         # probably a bit that says if it is a mesh_type of not.
         num = read_utils.u8(sia_file)
         num2 = 0
-        if num == 75 or num == 215 or num == 10 or num == 212 or num == 255 or num == 34 or num == 221 or num == 114 or num == 70 or num == 198 or num == 40 or num == 104 or num == 220 or num == 252 or num == 87 or num == 102 or num == 129 or num == 183 or num == 216 or num == 223 or num == 225 or num == 233 or num == 245 or num == 254 or num == 5:
+        if (
+            num == 75
+            or num == 215
+            or num == 10
+            or num == 212
+            or num == 255
+            or num == 34
+            or num == 221
+            or num == 114
+            or num == 70
+            or num == 198
+            or num == 40
+            or num == 104
+            or num == 220
+            or num == 252
+            or num == 87
+            or num == 102
+            or num == 129
+            or num == 183
+            or num == 216
+            or num == 223
+            or num == 225
+            or num == 233
+            or num == 245
+            or num == 254
+            or num == 5
+        ):
             # This seems wierd, and I wonder what data is hiding there.
             read_utils.skip(sia_file, 3)
             read_utils.skip(sia_file, (some_number2 * 56))
             num2 = read_utils.u8(sia_file)
 
         # num did not immediately seem like a bitfield
-        if num == 0 or num == 212 or num == 255 or num == 40 or num == 104 or num == 102 or num == 129 or num == 183 or num == 216 or num == 223:
+        if (
+            num == 0
+            or num == 212
+            or num == 255
+            or num == 40
+            or num == 104
+            or num == 102
+            or num == 129
+            or num == 183
+            or num == 216
+            or num == 223
+        ):
             pass
         # TODO: These can be combined and concened a lot
-        elif (num == 75 and num2 == 0) or (num == 225 and num2 == 0) or (num == 221 and num2 == 0) or (num == 114 and num2 == 0) or (num == 70 and num2 == 0) or (num == 245 and num2 == 0) or (num == 254 and num2 == 0) or (num == 215 and num2 == 0) or (num == 220 and num2 == 0) or (num == 198 and num2 == 0) or (num == 233 and num2 == 0) or (num == 252 and num2 == 0) or (num == 5 and num2 == 0) or (num == 87 and num2 == 0):
+        elif (
+            (num == 75 and num2 == 0)
+            or (num == 225 and num2 == 0)
+            or (num == 221 and num2 == 0)
+            or (num == 114 and num2 == 0)
+            or (num == 70 and num2 == 0)
+            or (num == 245 and num2 == 0)
+            or (num == 254 and num2 == 0)
+            or (num == 215 and num2 == 0)
+            or (num == 220 and num2 == 0)
+            or (num == 198 and num2 == 0)
+            or (num == 233 and num2 == 0)
+            or (num == 252 and num2 == 0)
+            or (num == 5 and num2 == 0)
+            or (num == 87 and num2 == 0)
+        ):
             pass
-        elif (num == 114 and num2 != 0) or (num == 70 and num2 != 0) or (num == 254 and num2 != 0) or (num == 215 and num2 != 0) or (num == 220 and num2 != 0) or (num == 198 and num2 != 0) or (num == 233 and num2 != 0) or (num == 252 and num2 != 0) or (num == 5 and num2 != 0) or (num == 87 and num2 != 0) or (num == 221 and num2 == 2):
+        elif (
+            (num == 114 and num2 != 0)
+            or (num == 70 and num2 != 0)
+            or (num == 254 and num2 != 0)
+            or (num == 215 and num2 != 0)
+            or (num == 220 and num2 != 0)
+            or (num == 198 and num2 != 0)
+            or (num == 233 and num2 != 0)
+            or (num == 252 and num2 != 0)
+            or (num == 5 and num2 != 0)
+            or (num == 87 and num2 != 0)
+            or (num == 221 and num2 == 2)
+        ):
             read_utils.skip(sia_file, 16)
-        elif num == 42 or num == 75 or num == 58 or num == 10 or num == 34 or (num == 225 and num2 != 0) or (num == 245 and num2 != 0) or (num == 221 and num2 == 42):
+        elif (
+            num == 42
+            or num == 75
+            or num == 58
+            or num == 10
+            or num == 34
+            or (num == 225 and num2 != 0)
+            or (num == 245 and num2 != 0)
+            or (num == 221 and num2 == 42)
+        ):
             kind = read_utils.string_u8_len(sia_file)
             if kind == b"mesh_type":
                 mesh_type = data_types.MeshType.from_u8(read_utils.u8(sia_file))
                 if mesh_type == data_types.MeshType.VariableLength:
                     model.end_kind = data_types.EndKind.MeshType(
-                        read_utils.string(sia_file))
+                        read_utils.string(sia_file)
+                    )
                 elif mesh_type == data_types.MeshType.RenderFlags:
                     read_utils.skip(sia_file, 4)
                     model.end_kind = data_types.EndKind.MeshType(
-                        read_utils.string_u8_len(sia_file))
+                        read_utils.string_u8_len(sia_file)
+                    )
                     read_utils.skip(sia_file, 5)
                     read_file_end(sia_file, num)
                     return model
                 elif mesh_type == data_types.MeshType.BodyPart:
                     model.end_kind = data_types.EndKind.MeshType(
-                        read_utils.string_with_length(sia_file, 4))
+                        read_utils.string_with_length(sia_file, 4)
+                    )
                 elif mesh_type == data_types.MeshType.RearCap:
                     model.end_kind = data_types.EndKind.MeshType(
-                        read_utils.string_with_length(sia_file, 8))
+                        read_utils.string_with_length(sia_file, 8)
+                    )
                     num_caps = read_utils.u32(sia_file)
                     for _ in range(num_caps):
                         cap_type = read_utils.u32(sia_file)
@@ -228,47 +310,71 @@ def load(path: str):
                             read_utils.string(sia_file)
                             read_utils.u32(sia_file)
                         else:
-                            raise SiaParseError("{} is a unknown cap type at file byte position: {}".format(
-                                cap_type, sia_file.tell()))
+                            raise SiaParseError(
+                                "{} is a unknown cap type at file byte position: {}".format(
+                                    cap_type, sia_file.tell()
+                                )
+                            )
 
                     read_file_end(sia_file, num)
 
                     return model
                 elif mesh_type == data_types.MeshType.StadiumRoof:
                     model.end_kind = data_types.EndKind.MeshType(
-                        read_utils.string_with_length(sia_file, 12))
+                        read_utils.string_with_length(sia_file, 12)
+                    )
                 elif mesh_type == data_types.MeshType.Glasses:
                     model.end_kind = data_types.EndKind.MeshType(
-                        read_utils.string_with_length(sia_file, 7))
+                        read_utils.string_with_length(sia_file, 7)
+                    )
                 elif mesh_type == data_types.MeshType.PlayerTunnel:
                     model.end_kind = data_types.EndKind.MeshType(
-                        read_utils.string_with_length(sia_file, 13))
+                        read_utils.string_with_length(sia_file, 13)
+                    )
                 elif mesh_type == data_types.MeshType.SideCap:
                     model.end_kind = data_types.EndKind.MeshType(
-                        read_utils.string_with_length(sia_file, 14))
+                        read_utils.string_with_length(sia_file, 14)
+                    )
                 elif mesh_type == data_types.MeshType.Unknown:
-                    raise SiaParseError("{} is a unknown mesh type at file byte position: {}".format(
-                        mesh_type, sia_file.tell()))
+                    raise SiaParseError(
+                        "{} is a unknown mesh type at file byte position: {}".format(
+                            mesh_type, sia_file.tell()
+                        )
+                    )
             elif kind == b"is_banner":
-                model.end_kind = data_types.EndKind.IsBanner(read_utils.u8(sia_file) != 0)
+                model.end_kind = data_types.EndKind.IsBanner(
+                    read_utils.u8(sia_file) != 0
+                )
             elif kind == b"is_comp_banner":
-                model.end_kind = data_types.EndKind.IsBanner(read_utils.u8(sia_file) != 0)
+                model.end_kind = data_types.EndKind.IsBanner(
+                    read_utils.u8(sia_file) != 0
+                )
             else:
                 raise SiaParseError(
-                    "{} is a unknown kind = {} type at file byte position: {}".format(num, kind, sia_file.tell()))
+                    "{} is a unknown kind = {} type at file byte position: {}".format(
+                        num, kind, sia_file.tell()
+                    )
+                )
         else:
-            raise SiaParseError("{} is a unknown type at file byte position: {}".format(
-                num, sia_file.tell()))
+            raise SiaParseError(
+                "{} is a unknown type at file byte position: {}".format(
+                    num, sia_file.tell()
+                )
+            )
 
         instances = read_utils.u32(sia_file)
         for i in range(0, instances):
-            instance_type = read_utils.u32(sia_file) # not sure what this means.
-            x = read_utils.f32(sia_file) # Side to side, no idea if X or not.
-            z = read_utils.f32(sia_file) # Back and forwards, no idea if Z or not.
-            y = read_utils.f32(sia_file) # Up and down
-            read_utils.skip(sia_file, 40) # From trying out different values I think this is a Transformation matrix
+            instance_type = read_utils.u32(sia_file)  # not sure what this means.
+            x = read_utils.f32(sia_file)  # Side to side, no idea if X or not.
+            z = read_utils.f32(sia_file)  # Back and forwards, no idea if Z or not.
+            y = read_utils.f32(sia_file)  # Up and down
+            read_utils.skip(
+                sia_file, 40
+            )  # From trying out different values I think this is a Transformation matrix
             # and it matches with 40 bytes I think
-            read_utils.skip(sia_file, 28) # This data seems separate from the previous one
+            read_utils.skip(
+                sia_file, 28
+            )  # This data seems separate from the previous one
             num1 = read_utils.u32(sia_file)
             for _ in range(0, num1):
                 # Possibly mesh data

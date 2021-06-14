@@ -27,7 +27,14 @@ def triangulate(me):
     bm.free()
 
 
-def save(context: Any, filepath="", axis_forward="Y", axis_up="Z", use_selection=False):
+def save(
+    context,
+    filepath,
+    addon_preferences,
+    axis_forward="Y",
+    axis_up="Z",
+    use_selection=False,
+):
     with open(filepath, "wb") as file:
         if use_selection:
             context_objects = context.selected_objects
@@ -67,7 +74,7 @@ def save(context: Any, filepath="", axis_forward="Y", axis_up="Z", use_selection
             if mat.is_negative:
                 mesh.flip_normals()
 
-            # Since this is slow, it only needs to do this is export tangent is checked.
+            # Since this is slow, it only needs to do this if export tangent is checked.
             mesh.calc_tangents()
 
             active_uv_layer = mesh.uv_layers.active.data
@@ -102,6 +109,8 @@ def save(context: Any, filepath="", axis_forward="Y", axis_up="Z", use_selection
             vert_count = 0
 
             for i, f in enumerate(mesh.polygons):
+                # by checking material_index on f, I'll be able to
+                # split materials into their own meshes.
                 uv = [
                     active_uv_layer[l].uv[:]
                     for l in range(f.loop_start, f.loop_start + f.loop_total)
