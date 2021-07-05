@@ -33,7 +33,7 @@ class Model:
         self.name = ""
         self.bounding_box = BoundingBox()
         self.settings = None
-        self.meshes = {}
+        self.meshes = []
         self.end_kind = None
 
 

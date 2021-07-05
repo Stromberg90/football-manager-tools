@@ -60,21 +60,19 @@ def load(path: str):
             mesh.id = read_utils.u32(sia_file)
             read_utils.skip(sia_file, 8)
 
-            model.meshes[mesh.id] = mesh
+            model.meshes.insert(mesh.id, mesh)
 
         meshes_num = read_utils.u32(sia_file)
 
         for i in range(meshes_num):
             read_utils.skip(sia_file, 16)
 
-            mesh = model.meshes.get(i)
+            mesh = model.meshes[i]
             assert mesh is not None
             material_name = read_utils.string(sia_file)
             materials_num = read_utils.u8(sia_file)
             # materials_num is more like material variations it seems.
             # max I've seen is 2 named static and degraded.
-            if materials_num != 1:
-                print("Material Num: {} In: {}".format(materials_num, path))
             for _ in range(materials_num):
                 material = data_types.Material(
                     material_name, read_utils.string(sia_file)
@@ -109,7 +107,7 @@ def load(path: str):
         # 10 Read 4 bits, seems strange
 
         for i in range(meshes_num):
-            mesh = model.meshes.get(i)
+            mesh = model.meshes[i]
 
             for _ in range(mesh.vertices_num):
                 position, normal, uv = (None, None, None)
@@ -151,7 +149,7 @@ def load(path: str):
         number_of_triangles = int(read_utils.u32(sia_file) / 3)
         # then it reads through those, maybe something to consider changing in mine.
         for i in range(meshes_num):
-            mesh = model.meshes.get(i)
+            mesh = model.meshes[i]
             for _ in range(mesh.triangles_num):
                 if vertices_total_num > 65535:
                     triangle = data_types.Triangle.read_u32(sia_file)

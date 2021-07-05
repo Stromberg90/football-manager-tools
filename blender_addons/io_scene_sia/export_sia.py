@@ -15,6 +15,7 @@ from bpy_extras.io_utils import (
 import pprint
 from . import data_types
 from . import write_utils
+from . import utils
 
 
 def triangulate(me):
@@ -35,133 +36,192 @@ def save(
     axis_up="Z",
     use_selection=False,
 ):
+    if use_selection:
+        context_objects = context.selected_objects
+    else:
+        context_objects = context.view_layer.objects
+
+    global_matrix = (
+        axis_conversion(
+            to_forward=axis_forward,
+            to_up=axis_up,
+        ).to_4x4()
+        @ Matrix.Scale(1.0, 4)
+    )
+
+    model = data_types.Model()
+    model.bounding_box = data_types.BoundingBox()
+    model.name = os.path.splitext(os.path.basename(filepath))[0]
+
+    valid_objects = []
+    for obj in context_objects:
+        if obj.type not in ["MESH", "CURVE"]:
+            continue
+
+        if obj.mode == "EDIT":
+            obj.update_from_editmode()
+
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        mesh_owner = obj.evaluated_get(depsgraph)
+
+        try:
+            mesh_owner.to_mesh()
+        except RuntimeError:
+            continue
+
+        valid_objects.append(obj)
+
+    for mesh_index, obj in enumerate(valid_objects):
+        sia_mesh = data_types.Mesh()
+
+        if obj.mode == "EDIT":
+            obj.update_from_editmode()
+
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        mesh_owner = obj.evaluated_get(depsgraph)
+
+        mesh = mesh_owner.to_mesh()
+
+        triangulate(mesh)
+
+        mat = global_matrix @ obj.matrix_world
+        mesh.transform(mat)
+        if mat.is_negative:
+            mesh.flip_normals()
+
+        # Since this is slow, it only needs to do this if export tangent is checked.
+        mesh.calc_tangents()
+
+        active_uv_layer = mesh.uv_layers.active.data
+
+        sia_mesh.id = mesh_index
+
+        mesh_verts = mesh.vertices
+        vdict = [{} for i in range(len(mesh_verts))]
+        ply_verts = []
+        ply_faces = [[] for f in range(len(mesh.polygons))]
+        vert_count = 0
+        used_material_indecies = []
+
+        for i, f in enumerate(mesh.polygons):
+            if f.material_index not in used_material_indecies:
+                used_material_indecies.append(f.material_index)
+            # by checking material_index on f, I'll be able to
+            # split materials into their own meshes.
+            uv = [
+                active_uv_layer[l].uv[:]
+                for l in range(f.loop_start, f.loop_start + f.loop_total)
+            ]
+            pf = ply_faces[i]
+            normals = []
+            tangents = []
+            for i, li in enumerate(f.loop_indices):
+                normals.append(mesh.loops[li].normal[:])
+                tangents.append(mesh.loops[li].tangent[:])
+            for j, vidx in enumerate(f.vertices):
+                normal = normals[j]
+                tangent = tangents[j]
+                uvcoord = uv[j][0], ((uv[j][1] * -1) + 1)
+
+                key = normal, uvcoord
+
+                vdict_local = vdict[vidx]
+                pf_vidx = vdict_local.get(key)
+
+                if pf_vidx is None:
+                    pf_vidx = vdict_local[key] = vert_count
+                    ply_verts.append((vidx, normal, uvcoord, tangent))
+                    vert_count += 1
+
+                pf.append(pf_vidx)
+
+        materials = [
+            mat
+            for (index, mat) in enumerate(mesh.materials)
+            if index in used_material_indecies
+        ]
+
+        for material in materials:
+            node_tree = material.node_tree
+            texture_map = {}
+            for n in node_tree.nodes:
+                if n.bl_idname == "ShaderNodeTexImage":
+                    texture_path = n.image.filepath_from_user()
+                    if not texture_path.startswith(
+                        os.path.abspath(addon_preferences.base_textures_path) + os.sep
+                    ):
+                        raise Exception(
+                            "{} is not in the base folder texture path of {} it can be changed in the addon preferences".format(
+                                texture_path, addon_preferences.base_textures_path
+                            )
+                        )
+
+                    basename = os.path.basename(texture_path)
+                    (filename, ext) = os.path.splitext(basename)
+
+                    if ext != ".dds":
+                        raise Exception("{} is not a dds file".format(basename))
+
+                    relative_path = utils.asset_path(
+                        texture_path, addon_preferences.base_textures_path
+                    )
+
+                    if filename.endswith("[al]"):
+                        texture_map[data_types.TextureKind.Albedo] = relative_path
+                    elif filename.endswith("[no]"):
+                        texture_map[data_types.TextureKind.Normal] = relative_path
+                    elif filename.endswith("[ro]_[me]_[ao]"):
+                        texture_map[
+                            data_types.TextureKind.RoughnessMetallicAmbientOcclusion
+                        ] = relative_path
+                    elif filename.endswith("[ma]"):
+                        texture_map[data_types.TextureKind.Mask] = relative_path
+                    else:
+                        raise Exception(
+                            "{} does not contain any of the valid postfixes".format(
+                                basename
+                            )
+                        )
+
+            sia_material = data_types.Material()
+            sia_material.name = material.name
+            sia_material.kind = "base"
+            for (kind, path) in texture_map.items():
+                sia_texture = data_types.Texture()
+                sia_texture.path = path
+                sia_texture.kind = kind
+                sia_material.textures.append(sia_texture)
+
+            sia_mesh.materials.append(sia_material)
+
+        # TODO: Move this inline into the loop above
+        for index, normal, uv_coords, tangent in ply_verts:
+            vert = mesh_verts[index]
+            vertex = data_types.Vertex(
+                data_types.Vector3(*vert.co[:]),
+                data_types.Vector3(*normal),
+                data_types.Vector2(*uv_coords),
+                data_types.Vector3(*tangent),
+            )
+            model.bounding_box.update_with_vector(vertex.position)
+            sia_mesh.vertices.append(vertex)
+
+        # TODO: Move this inline into the loop above
+        for pf in ply_faces:
+            sia_mesh.triangles.append(data_types.Triangle(*pf))
+
+        # TODO: These don't need to be fields, it can compute this when writing it.
+        sia_mesh.vertices_num = len(sia_mesh.vertices)
+        sia_mesh.triangles_num = len(sia_mesh.triangles)
+
+        model.meshes.append(sia_mesh)
+
+        mesh_owner.to_mesh_clear()
+
+    if len(model.meshes) == 0:
+        raise Exception("No valid meshes to export")
+
     with open(filepath, "wb") as file:
-        if use_selection:
-            context_objects = context.selected_objects
-        else:
-            context_objects = context.view_layer.objects
-
-        global_matrix = (
-            axis_conversion(
-                to_forward=axis_forward,
-                to_up=axis_up,
-            ).to_4x4()
-            @ Matrix.Scale(1.0, 4)
-        )
-
-        model = data_types.Model()
-        model.bounding_box = data_types.BoundingBox()
-        model.name = os.path.splitext(os.path.basename(filepath))[0]
-
-        for mesh_index, obj in enumerate(context_objects):
-            sia_mesh = data_types.Mesh()
-
-            if obj.mode == "EDIT":
-                obj.update_from_editmode()
-
-            depsgraph = bpy.context.evaluated_depsgraph_get()
-            mesh_owner = obj.evaluated_get(depsgraph)
-
-            mesh = mesh_owner.to_mesh()
-
-            if mesh is None:
-                return
-
-            triangulate(mesh)
-
-            mat = global_matrix @ obj.matrix_world
-            mesh.transform(mat)
-            if mat.is_negative:
-                mesh.flip_normals()
-
-            # Since this is slow, it only needs to do this if export tangent is checked.
-            mesh.calc_tangents()
-
-            active_uv_layer = mesh.uv_layers.active.data
-
-            materials = mesh.materials[:]
-            for material in materials:
-                sia_material = data_types.Material()
-                sia_material.name = material.name
-                sia_material.kind = "base"
-                for texture in [
-                    ("mesh/dugout/dugout_[al]", data_types.TextureKind.Albedo),
-                    (
-                        "mesh/dugout/dugout_[ro]_[me]_[ao]",
-                        data_types.TextureKind.RoughnessMetallicAmbientOcclusion,
-                    ),
-                    ("mesh/dugout/dugout_[no]", data_types.TextureKind.Normal),
-                    ("mesh/dugout/dugout_[ma]", data_types.TextureKind.Mask),
-                ]:
-                    sia_texture = data_types.Texture()
-                    sia_texture.path = texture[0]
-                    sia_texture.kind = texture[1]
-                    sia_material.textures.append(sia_texture)
-
-                sia_mesh.materials.append(sia_material)
-
-            sia_mesh.id = mesh_index
-
-            mesh_verts = mesh.vertices
-            vdict = [{} for i in range(len(mesh_verts))]
-            ply_verts = []
-            ply_faces = [[] for f in range(len(mesh.polygons))]
-            vert_count = 0
-
-            for i, f in enumerate(mesh.polygons):
-                # by checking material_index on f, I'll be able to
-                # split materials into their own meshes.
-                uv = [
-                    active_uv_layer[l].uv[:]
-                    for l in range(f.loop_start, f.loop_start + f.loop_total)
-                ]
-                pf = ply_faces[i]
-                normals = []
-                tangents = []
-                for i, li in enumerate(f.loop_indices):
-                    normals.append(mesh.loops[li].normal[:])
-                    tangents.append(mesh.loops[li].tangent[:])
-                for j, vidx in enumerate(f.vertices):
-                    normal = normals[j]
-                    tangent = tangents[j]
-                    uvcoord = uv[j][0], ((uv[j][1] * -1) + 1)
-
-                    key = normal, uvcoord
-
-                    vdict_local = vdict[vidx]
-                    pf_vidx = vdict_local.get(key)
-
-                    if pf_vidx is None:
-                        pf_vidx = vdict_local[key] = vert_count
-                        ply_verts.append((vidx, normal, uvcoord, tangent))
-                        vert_count += 1
-
-                    pf.append(pf_vidx)
-
-            # TODO: Move this inline into the loop above
-            for index, normal, uv_coords, tangent in ply_verts:
-                vert = mesh_verts[index]
-                vertex = data_types.Vertex(
-                    data_types.Vector3(*vert.co[:]),
-                    data_types.Vector3(*normal),
-                    data_types.Vector2(*uv_coords),
-                    data_types.Vector3(*tangent),
-                )
-                model.bounding_box.update_with_vector(vertex.position)
-                sia_mesh.vertices.append(vertex)
-
-            # TODO: Move this inline into the loop above
-            for pf in ply_faces:
-                sia_mesh.triangles.append(data_types.Triangle(*pf))
-
-            # TODO: These don't need to be fields, it can compute this when writing it.
-            sia_mesh.vertices_num = len(sia_mesh.vertices)
-            sia_mesh.triangles_num = len(sia_mesh.triangles)
-
-            model.meshes[mesh_index] = sia_mesh
-
-            mesh_owner.to_mesh_clear()
-
         file.write(b"SHSM")
 
         file.write(pack("<I", 35))
@@ -182,20 +242,20 @@ def save(
 
         write_utils.u32(file, len(model.meshes))
 
-        for (mesh_id, mesh) in model.meshes.items():
+        for mesh in model.meshes:
             write_utils.zeros(file, 4)
             write_utils.u32(file, mesh.vertices_num)
 
             write_utils.zeros(file, 4)
             write_utils.u32(file, mesh.triangles_num * 3)
 
-            write_utils.u32(file, mesh_id)
+            write_utils.u32(file, mesh.id)
             # Setting byte 4 and 8 to 0, made it crash, no noticable difference when changing the others
             write_utils.full_bytes(file, 8)
 
         write_utils.u32(file, len(model.meshes))
 
-        for (mesh_id, mesh) in model.meshes.items():
+        for mesh in model.meshes:
             for byte in [59, 194, 144, 210]:
                 write_utils.u8(file, byte)
 
@@ -215,7 +275,7 @@ def save(
 
         vertices_total_num = 0
         number_of_triangles = 0
-        for (mesh_id, mesh) in model.meshes.items():
+        for mesh in model.meshes:
             vertices_total_num += mesh.vertices_num
             number_of_triangles += mesh.triangles_num
 
@@ -230,7 +290,7 @@ def save(
         model.settings[9] = True
         write_utils.u32(file, model.settings.number())
 
-        for (mesh_id, mesh) in model.meshes.items():
+        for mesh in model.meshes:
             for vertex in mesh.vertices:
                 if model.settings[0]:
                     write_utils.vector3(file, vertex.position)
@@ -248,7 +308,7 @@ def save(
 
         write_utils.u32(file, number_of_triangles * 3)
 
-        for (mesh_id, mesh) in model.meshes.items():
+        for mesh in model.meshes:
             for triangle in mesh.triangles:
                 if vertices_total_num > 65535:
                     triangle.write_u32(file)

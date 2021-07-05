@@ -19,9 +19,9 @@ def load(context, filepath, addon_preferences):
     root = bpy.data.objects.new(sia_file.name, None)
     collection.objects.link(root)
 
-    for (i, mesh) in sia_file.meshes.items():
+    for mesh in sia_file.meshes:
         materials = {}
-        me = bpy.data.meshes.new("{}_mesh_{}".format(sia_file.name.lower(), i))
+        me = bpy.data.meshes.new("{}_mesh_{}".format(sia_file.name.lower(), mesh.id))
         for material in mesh.materials:
             material.name = material.name.decode("utf-8", "replace")
             if material.name not in materials:
@@ -40,10 +40,19 @@ def load(context, filepath, addon_preferences):
                     addon_preferences.base_extracted_textures_path,
                     texture.path.decode("utf-8", "replace"),
                 )
+                alternative_texture_path = utils.absolute_asset_path(
+                    addon_preferences.base_textures_path,
+                    texture.path.decode("utf-8", "replace"),
+                )
+                texture_base = os.path.splitext(texture_path)[0]
+                alternative_texture_base = os.path.splitext(alternative_texture_path)[0]
 
                 for ext in [".dds", ".tga", ".png", ".jpg", ".jpeg"]:
-                    if os.path.exists(texture_path + ext):
-                        texture_path = texture_path + ext
+                    if os.path.exists(texture_base + ext):
+                        texture_path = texture_base + ext
+                        break
+                    elif os.path.exists(alternative_texture_base + ext):
+                        texture_path = alternative_texture_base + ext
                         break
 
                 if texture.kind == data_types.TextureKind.Albedo:
