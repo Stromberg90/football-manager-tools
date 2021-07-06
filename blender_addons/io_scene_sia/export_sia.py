@@ -162,9 +162,11 @@ def save(
                     if ext != ".dds":
                         raise Exception("{} is not a dds file".format(basename))
 
-                    relative_path = utils.asset_path(
-                        texture_path, addon_preferences.base_textures_path
-                    )
+                    relative_path = os.path.splitext(
+                        utils.asset_path(
+                            texture_path, addon_preferences.base_textures_path
+                        )
+                    )[0]
 
                     if filename.endswith("[al]"):
                         texture_map[data_types.TextureKind.Albedo] = relative_path
