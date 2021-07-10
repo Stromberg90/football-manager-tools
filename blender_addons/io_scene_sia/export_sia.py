@@ -147,14 +147,27 @@ def save(
             for n in node_tree.nodes:
                 if n.bl_idname == "ShaderNodeTexImage":
                     texture_path = n.image.filepath_from_user()
-                    if not texture_path.startswith(
+                    is_extracted_texture = texture_path.startswith(
+                        os.path.abspath(addon_preferences.base_extracted_textures_path)
+                        + os.sep
+                    )
+                    is_exported_texture = texture_path.startswith(
                         os.path.abspath(addon_preferences.base_textures_path) + os.sep
-                    ):
-                        raise Exception(
-                            "{} is not in the base folder texture path of {} it can be changed in the addon preferences".format(
-                                texture_path, addon_preferences.base_textures_path
+                    )
+                    if not (is_exported_texture or is_extracted_texture):
+                        if not is_exported_texture:
+                            raise Exception(
+                                "{} is not in the base folder texture path of {} it can be changed in the addon preferences".format(
+                                    texture_path, addon_preferences.base_textures_path
+                                )
                             )
-                        )
+                        elif not is_extracted_texture:
+                            raise Exception(
+                                "{} is not in the base extracted folder texture path of {} it can be changed in the addon preferences".format(
+                                    texture_path,
+                                    addon_preferences.base_extracted_textures_path,
+                                )
+                            )
 
                     basename = os.path.basename(texture_path)
                     (filename, ext) = os.path.splitext(basename)
@@ -162,11 +175,19 @@ def save(
                     if ext != ".dds":
                         raise Exception("{} is not a dds file".format(basename))
 
-                    relative_path = os.path.splitext(
-                        utils.asset_path(
-                            texture_path, addon_preferences.base_textures_path
-                        )
-                    )[0]
+                    if is_exported_texture:
+                        relative_path = os.path.splitext(
+                            utils.asset_path(
+                                texture_path, addon_preferences.base_textures_path
+                            )
+                        )[0]
+                    elif is_extracted_texture:
+                        relative_path = os.path.splitext(
+                            utils.asset_path(
+                                texture_path,
+                                addon_preferences.base_extracted_textures_path,
+                            )
+                        )[0]
 
                     if filename.endswith("[al]"):
                         texture_map[data_types.TextureKind.Albedo] = relative_path
@@ -180,7 +201,7 @@ def save(
                         texture_map[data_types.TextureKind.Mask] = relative_path
                     else:
                         raise Exception(
-                            "{} does not contain any of the valid postfixes".format(
+                            "{} does not contain any of the valid suffixes".format(
                                 basename
                             )
                         )
@@ -287,7 +308,6 @@ def save(
         model.settings[0] = True
         model.settings[1] = True
         model.settings[2] = True
-        # If I set 5 to false, lighting still works.
         model.settings[5] = True
         model.settings[9] = True
         write_utils.u32(file, model.settings.number())
