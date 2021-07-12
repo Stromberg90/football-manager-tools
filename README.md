@@ -35,7 +35,7 @@ different compression.
     - compression: DXT1
     - blender color space: Linear
 - Roughness, Metalic, Ambient Occlusion **combined texture**
-    - suffix: [ro]_[me]_[ao]
+    - suffix: [ro]\_[me]_[ao]
     - compression: DXT5
     - blender color space: Linear
 
