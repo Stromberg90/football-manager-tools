@@ -24,7 +24,7 @@ from bpy_extras.io_utils import (
 bl_info = {
     "name": "SIA Format",
     "author": "Andreas Strømberg",
-    "version": (0, 1, 0),
+    "version": (1, 0, 0),
     "blender": (2, 91, 2),
     "location": "File > Import-Export",
     "description": "Import-Export SIA",
@@ -90,28 +90,28 @@ class ImportSIA(bpy.types.Operator, ExportHelper):
 class IoSiaPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
     base_extracted_textures_path: StringProperty(
-        name="Base Extracted Textures Path",
+        name="Extracted Textures",
         description="Path to extracted from football manager base folder",
         default="",
         subtype="DIR_PATH",
     )
 
     base_textures_path: StringProperty(
-        name="Base Custom Textures Path",
+        name="Custom Textures",
         description="Path to custom textures base folder",
         default="",
         subtype="DIR_PATH",
     )
 
     base_extracted_meshes_path: StringProperty(
-        name="Base Extracted Meshes Path",
+        name="Extracted Meshes",
         description="Path to meshes from football manager base folder",
         default="",
         subtype="DIR_PATH",
     )
 
     base_meshes_path: StringProperty(
-        name="Base Custom Meshes Path",
+        name="Custom Meshes",
         description="Path to custom meshes base folder",
         default="",
         subtype="DIR_PATH",
@@ -153,11 +153,13 @@ classes = (ExportSIA, SIA_PT_export_include, ImportSIA, IoSiaPreferences)
 
 
 def menu_func_export(self, context):
-    self.layout.operator(ExportSIA.bl_idname, text="Football Manager 2021 Mesh (.sia)")
+    self.layout.operator(ExportSIA.bl_idname,
+                         text="Football Manager 2021 Mesh (.sia)")
 
 
 def menu_func_import(self, context):
-    self.layout.operator(ImportSIA.bl_idname, text="Football Manager 2021 Mesh (.sia)")
+    self.layout.operator(ImportSIA.bl_idname,
+                         text="Football Manager 2021 Mesh (.sia)")
 
 
 def register():
