@@ -9,7 +9,7 @@ Imported | Exported
 1. Open Football Manager 2021 Resource Archiver(comes with the game on steam).
 2. Extract simatchviewer and simatchviewer-pc to a folder.
 > simatchviewer is models, simatchviewer-pc is textures
-3. Download the latest zip from [releases](releases).
+3. Download the latest zip from [releases](https://github.com/Stromberg90/football-manager-tools/releases).
 4. Open Blender.
 5. Go to Edit->Preferences->Addons then the install button on the upper right corner and select the zip you downloaded.
 6. Enable addon, set **Base Extracted Textures** to the simatchviewer-pc folder you extracted earlier(for it to automatically assign textures).
