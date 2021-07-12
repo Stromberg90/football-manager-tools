@@ -2,7 +2,6 @@ import bpy
 import os
 import bmesh
 from bpy_extras import node_shader_utils
-from bpy_extras.io_utils import unpack_list
 from bpy_extras.image_utils import load_image
 from . import parse_sia
 from . import utils
@@ -10,6 +9,28 @@ from . import data_types
 
 
 def load(context, filepath, addon_preferences):
+    node_group_name = "FM Material v1.0"
+    fm_material_path = os.path.realpath(__file__)
+    fm_material_path = os.path.dirname(fm_material_path)
+    fm_material_path = bpy.path.abspath(
+        fm_material_path + "/fm_material.blend/NodeTree"
+    )
+    fm_material = None
+    append_node_group = True
+    for node_group in bpy.data.node_groups:
+        if node_group.name == node_group_name:
+            append_node_group = False
+            fm_material = node_group
+            break
+    if append_node_group:
+        bpy.ops.wm.append(
+            directory=fm_material_path, filename=node_group_name, link=False
+        )
+        for node_group in bpy.data.node_groups:
+            if node_group.name == node_group_name:
+                fm_material = node_group
+                break
+
     sia_file = parse_sia.load(filepath)
     sia_file.name = sia_file.name.decode("utf-8", "replace")
 
@@ -31,10 +52,20 @@ def load(context, filepath, addon_preferences):
 
             mat = materials[material.name]
 
-            wrapped_mat = node_shader_utils.PrincipledBSDFWrapper(
-                mat, is_readonly=False, use_nodes=True
-            )
+            mat.use_nodes = True
+            nodes = mat.node_tree.nodes
+            for node in nodes:
+                if node.bl_idname == "ShaderNodeBsdfPrincipled":
+                    nodes.remove(node)
+                elif node.bl_idname == "ShaderNodeOutputMaterial":
+                    output_node = node
 
+            node_group = nodes.new("ShaderNodeGroup")
+            node_group.node_tree = fm_material
+
+            mat.node_tree.links.new(
+                output_node.inputs["Surface"], node_group.outputs["BSDF"]
+            )
             for texture in material.textures:
                 texture_path = utils.absolute_asset_path(
                     addon_preferences.base_extracted_textures_path,
@@ -47,17 +78,56 @@ def load(context, filepath, addon_preferences):
                 texture_base = os.path.splitext(texture_path)[0]
                 alternative_texture_base = os.path.splitext(alternative_texture_path)[0]
 
-                for ext in [".dds", ".tga", ".png", ".jpg", ".jpeg"]:
-                    if os.path.exists(texture_base + ext):
-                        texture_path = texture_base + ext
-                        break
-                    elif os.path.exists(alternative_texture_base + ext):
-                        texture_path = alternative_texture_base + ext
-                        break
+                ext = ".dds"
+                if os.path.exists(texture_base + ext):
+                    texture_path = texture_base + ext
+                elif os.path.exists(alternative_texture_base + ext):
+                    texture_path = alternative_texture_base + ext
+
+                if not os.path.exists(texture_path):
+                    continue
 
                 if texture.kind == data_types.TextureKind.Albedo:
-                    wrapped_mat.base_color_texture.image = load_image(texture_path)
-                    wrapped_mat.base_color_texture.texcoords = "UV"
+                    albedo = nodes.new("ShaderNodeTexImage")
+                    mat.node_tree.links.new(
+                        node_group.inputs["Albedo"], albedo.outputs["Color"]
+                    )
+                    texture = bpy.data.images.load(texture_path, check_existing=True)
+                    albedo.image = texture
+                elif (
+                    texture.kind
+                    == data_types.TextureKind.RoughnessMetallicAmbientOcclusion
+                ):
+                    ro_me_ao = nodes.new("ShaderNodeTexImage")
+                    mat.node_tree.links.new(
+                        node_group.inputs["Roughness Metallic AO"],
+                        ro_me_ao.outputs["Color"],
+                    )
+                    texture = bpy.data.images.load(texture_path, check_existing=True)
+                    texture.colorspace_settings.name = "Linear"
+                    ro_me_ao.image = texture
+                elif texture.kind == data_types.TextureKind.Normal:
+                    normal = nodes.new("ShaderNodeTexImage")
+                    mat.node_tree.links.new(
+                        node_group.inputs["Normal"],
+                        normal.outputs["Color"],
+                    )
+                    mat.node_tree.links.new(
+                        node_group.inputs["Normal Alpha"],
+                        normal.outputs["Alpha"],
+                    )
+                    texture = bpy.data.images.load(texture_path, check_existing=True)
+                    texture.colorspace_settings.name = "Non-Color"
+                    normal.image = texture
+                elif texture.kind == data_types.TextureKind.Mask:
+                    mask = nodes.new("ShaderNodeTexImage")
+                    mat.node_tree.links.new(
+                        node_group.inputs["Mask"],
+                        mask.outputs["Color"],
+                    )
+                    texture = bpy.data.images.load(texture_path, check_existing=True)
+                    texture.colorspace_settings.name = "Linear"
+                    mask.image = texture
 
             me.materials.append(materials[material.name])
 
