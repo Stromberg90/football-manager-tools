@@ -183,6 +183,10 @@ class Texture:
         self.kind = kind
         self.path = name
 
+    def __eq__(self, other):
+        if isinstance(other, Texture):
+            return self.kind == other.kind and self.path == other.path
+
     def write(self, file):
         write_utils.u8(file, int(self.kind))
         write_utils.string(file, self.path)
@@ -193,6 +197,23 @@ class Material:
         self.name = name
         self.kind = kind
         self.textures = []
+
+    def __hash__(self):
+        hashstr = str(self.name) + str(self.kind)
+        for texture in self.textures:
+            hashstr += str(texture.path)
+        return hash(hashstr)
+
+    def __eq__(self, other):
+        if isinstance(other, Material):
+            if self.name != other.name or self.kind != other.kind:
+                return False
+            for texture in self.textures:
+                if texture not in other.textures:
+                    return False
+            return True
+
+        return False
 
 
 class MeshType(IntEnum):

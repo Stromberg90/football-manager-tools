@@ -40,17 +40,16 @@ def load(context, filepath, addon_preferences):
     root = bpy.data.objects.new(sia_file.name, None)
     collection.objects.link(root)
 
+    materials = {}
+
     for mesh in sia_file.meshes:
-        materials = {}
         me = bpy.data.meshes.new("{}_mesh_{}".format(sia_file.name.lower(), mesh.id))
         for material in mesh.materials:
             material.name = material.name.decode("utf-8", "replace")
-            if material.name not in materials:
-                materials[material.name] = bpy.data.materials.new(material.name)
-            else:
-                continue
+            if material not in materials:
+                materials[material] = bpy.data.materials.new(material.name)
 
-            mat = materials[material.name]
+            mat = materials[material]
 
             mat.use_nodes = True
             nodes = mat.node_tree.nodes
@@ -129,7 +128,7 @@ def load(context, filepath, addon_preferences):
                     texture.colorspace_settings.name = "Linear"
                     mask.image = texture
 
-            me.materials.append(materials[material.name])
+            me.materials.append(materials[material])
 
         bm = bmesh.new()
         uvs = []
