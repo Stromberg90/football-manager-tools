@@ -19,8 +19,6 @@ from . import utils
 
 
 def triangulate(me):
-    import bmesh
-
     bm = bmesh.new()
     bm.from_mesh(me)
     bmesh.ops.triangulate(bm, faces=bm.faces)
@@ -193,7 +191,9 @@ def save(
                         texture_map[data_types.TextureKind.Albedo] = relative_path
                     elif filename.endswith("[no]"):
                         texture_map[data_types.TextureKind.Normal] = relative_path
-                    elif filename.endswith("[ro]_[me]_[ao]"):
+                    elif filename.endswith("[ro]_[me]_[ao]") or filename.endswith(
+                        "[ro]_[me]"
+                    ):
                         texture_map[
                             data_types.TextureKind.RoughnessMetallicAmbientOcclusion
                         ] = relative_path
@@ -265,12 +265,19 @@ def save(
 
         write_utils.u32(file, len(model.meshes))
 
+        # Seems like some sort of offset, but where does the magic numbers come from?
+        # and do they change per mesh, need to check that out.
+        # is it like vertices bytes written?
+        vertex_offset = 0
+        triangle_offset = 0
         for mesh in model.meshes:
-            write_utils.zeros(file, 4)
+            write_utils.u32(file, vertex_offset)
             write_utils.u32(file, mesh.vertices_num)
+            vertex_offset += mesh.vertices_num * 96
 
-            write_utils.zeros(file, 4)
+            write_utils.u32(file, triangle_offset)
             write_utils.u32(file, mesh.triangles_num * 3)
+            triangle_offset += (mesh.triangles_num * 3) * 2
 
             write_utils.u32(file, mesh.id)
             # Setting byte 4 and 8 to 0, made it crash, no noticable difference when changing the others
@@ -279,6 +286,12 @@ def save(
         write_utils.u32(file, len(model.meshes))
 
         for mesh in model.meshes:
+            # What is this?
+            # almost seems to be a hash or something,
+            # it looks like when the material name is the same, so is this byte sequence.
+            # write_utils.u32(file, mesh.id)
+            # might be the material type, since they need to be specific values for lighting to work.
+
             for byte in [59, 194, 144, 210]:
                 write_utils.u8(file, byte)
 
@@ -308,8 +321,9 @@ def save(
         model.settings[0] = True
         model.settings[1] = True
         model.settings[2] = True
+        model.settings[3] = True
         model.settings[5] = True
-        model.settings[9] = True
+        model.settings[9] = False
         write_utils.u32(file, model.settings.number())
 
         for mesh in model.meshes:
@@ -320,12 +334,16 @@ def save(
                     write_utils.vector3(file, vertex.normal)
                 if model.settings[2]:
                     write_utils.vector2(file, vertex.uv)
+                if model.settings[3]:
+                    # TODO: Write second uv/lightmap
+                    write_utils.vector2(file, vertex.uv)
                 if model.settings[5]:
                     # Thought this could be tangents, but why is the one more value at the end then.
                     write_utils.vector3(file, vertex.tangent)
                     write_utils.f32(file, 1)
                 if model.settings[9]:
                     # When I've seen this it has been all F's
+                    # as mentioned in the parse_sia file, might be vertex color.
                     write_utils.full_bytes(file, 4)
 
         write_utils.u32(file, number_of_triangles * 3)

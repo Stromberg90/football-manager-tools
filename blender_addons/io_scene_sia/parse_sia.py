@@ -1,7 +1,10 @@
 from io import BufferedReader
 import os
+import pprint
 from . import data_types
 from . import read_utils
+
+pp = pprint.PrettyPrinter(indent=4)
 
 
 class SiaParseError(Exception):
@@ -50,14 +53,19 @@ def load(path: str):
         for _ in range(objects_num):
             mesh = data_types.Mesh()
 
-            read_utils.skip(sia_file, 4)  # Been 0 when I've looked
+            # vertex_offset
+            read_utils.skip(sia_file, 4)
+
             mesh.vertices_num = read_utils.u32(sia_file)
 
-            read_utils.skip(sia_file, 4)  # Been 0 when I've looked
+            # triangle_offset
+            read_utils.skip(sia_file, 4)
             # Number of triangles when divided by 3
             mesh.triangles_num = int(read_utils.u32(sia_file) / 3)
 
             mesh.id = read_utils.u32(sia_file)
+
+            # Been full bytes when I've checked
             read_utils.skip(sia_file, 8)
 
             model.meshes.insert(mesh.id, mesh)
@@ -65,12 +73,24 @@ def load(path: str):
         meshes_num = read_utils.u32(sia_file)
 
         for i in range(meshes_num):
-            read_utils.skip(sia_file, 16)
+            # Find out what this is.
+            # did read them as floats, made no sense.
+            # almost seems to be a hash or something,
+            # it looks like when the material name is the same, so is this byte sequence.
+            read_utils.skip(sia_file, 4)
+
+            # Only observed as zeros
+            read_utils.skip(sia_file, 4)
+            # Only observed as full bytes
+            read_utils.skip(sia_file, 4)
+            # Only observed as zeros
+            read_utils.skip(sia_file, 4)
 
             mesh = model.meshes[i]
             assert mesh is not None
             material_name = read_utils.string(sia_file)
             materials_num = read_utils.u8(sia_file)
+
             # materials_num is more like material variations it seems.
             # max I've seen is 2 named static and degraded.
             for _ in range(materials_num):
@@ -124,8 +144,8 @@ def load(path: str):
                 else:
                     uv = data_types.Vector2(0, 0)
                 if model.settings[3]:
-                    # Looked, don't know what it is yet.
-                    read_utils.skip(sia_file, 8)
+                    # Lightmap uvs or just the second uv set used for more reasons.
+                    lightmap_uv = data_types.read_vector2(sia_file)
                 if model.settings[4]:
                     read_utils.skip(sia_file, 8)
                 if model.settings[5]:
@@ -141,6 +161,10 @@ def load(path: str):
                     # Printed these as floats, they where very small values(pretty much 0), so unsure what this could be.
                     read_utils.skip(sia_file, 20)
                 if model.settings[9]:
+                    # Don't know when this is set, but it only happens in some files.
+                    # most of the time it seems to be a 255 byte, but I have seen others as well.
+                    # can it be vertex color?
+                    # one byte per color plus alpha
                     read_utils.skip(sia_file, 4)
 
                 mesh.vertices.append(data_types.Vertex(position, normal, uv))
@@ -176,32 +200,32 @@ def load(path: str):
         # probably a bit that says if it is a mesh_type of not.
         num = read_utils.u8(sia_file)
         num2 = 0
-        if (
-            num == 75
-            or num == 215
-            or num == 10
-            or num == 212
-            or num == 255
-            or num == 34
-            or num == 221
-            or num == 114
-            or num == 70
-            or num == 198
-            or num == 40
-            or num == 104
-            or num == 220
-            or num == 252
-            or num == 87
-            or num == 102
-            or num == 129
-            or num == 183
-            or num == 216
-            or num == 223
-            or num == 225
-            or num == 233
-            or num == 245
-            or num == 254
-            or num == 5
+        if num in (
+            75,
+            215,
+            10,
+            212,
+            255,
+            34,
+            221,
+            114,
+            70,
+            198,
+            40,
+            104,
+            220,
+            252,
+            87,
+            102,
+            129,
+            183,
+            216,
+            223,
+            225,
+            233,
+            245,
+            254,
+            5,
         ):
             # This seems wierd, and I wonder what data is hiding there.
             read_utils.skip(sia_file, 3)
@@ -209,59 +233,20 @@ def load(path: str):
             num2 = read_utils.u8(sia_file)
 
         # num did not immediately seem like a bitfield
-        if (
-            num == 0
-            or num == 212
-            or num == 255
-            or num == 40
-            or num == 104
-            or num == 102
-            or num == 129
-            or num == 183
-            or num == 216
-            or num == 223
-        ):
+        if num in (0, 212, 255, 40, 104, 102, 129, 183, 216, 223):
             pass
         # TODO: These can be combined and concened a lot
-        elif (
-            (num == 75 and num2 == 0)
-            or (num == 225 and num2 == 0)
-            or (num == 221 and num2 == 0)
-            or (num == 114 and num2 == 0)
-            or (num == 70 and num2 == 0)
-            or (num == 245 and num2 == 0)
-            or (num == 254 and num2 == 0)
-            or (num == 215 and num2 == 0)
-            or (num == 220 and num2 == 0)
-            or (num == 198 and num2 == 0)
-            or (num == 233 and num2 == 0)
-            or (num == 252 and num2 == 0)
-            or (num == 5 and num2 == 0)
-            or (num == 87 and num2 == 0)
+        elif num2 == 0 and (
+            num in (75, 225, 221, 114, 70, 245, 254, 215, 220, 198, 233, 252, 5, 87)
         ):
             pass
-        elif (
-            (num == 114 and num2 != 0)
-            or (num == 70 and num2 != 0)
-            or (num == 254 and num2 != 0)
-            or (num == 215 and num2 != 0)
-            or (num == 220 and num2 != 0)
-            or (num == 198 and num2 != 0)
-            or (num == 233 and num2 != 0)
-            or (num == 252 and num2 != 0)
-            or (num == 5 and num2 != 0)
-            or (num == 87 and num2 != 0)
-            or (num == 221 and num2 == 2)
+        elif (num in (114, 70, 254, 215, 220, 198, 233, 252, 5, 87) and num2 != 0) or (
+            num == 221 and num2 == 2
         ):
             read_utils.skip(sia_file, 16)
         elif (
-            num == 42
-            or num == 75
-            or num == 58
-            or num == 10
-            or num == 34
-            or (num == 225 and num2 != 0)
-            or (num == 245 and num2 != 0)
+            (num in (42, 75, 58, 10, 34))
+            or (num in (225, 245) and num2 != 0)
             or (num == 221 and num2 == 42)
         ):
             kind = read_utils.string_u8_len(sia_file)

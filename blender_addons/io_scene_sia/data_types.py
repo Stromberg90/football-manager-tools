@@ -217,6 +217,7 @@ class Material:
 
 
 class MeshType(IntEnum):
+    Unknown = 0
     RenderFlags = 2
     VariableLength = 8
     BodyPart = 88
@@ -225,7 +226,6 @@ class MeshType(IntEnum):
     StadiumRoof = 216
     PlayerTunnel = 232
     SideCap = 248
-    Unknown = 0
 
     @staticmethod
     def from_u8(u8):

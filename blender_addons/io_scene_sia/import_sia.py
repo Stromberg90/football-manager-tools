@@ -136,8 +136,8 @@ def load(context, filepath, addon_preferences):
             bm.verts.new((v.position.x, v.position.y, v.position.z))
             uvs.append((v.uv.x, (v.uv.y * -1) + 1))
         bm.verts.ensure_lookup_table()
-        for f in mesh.triangles:
-            bm.faces.new((bm.verts[f.index1], bm.verts[f.index2], bm.verts[f.index3]))
+        for t in mesh.triangles:
+            bm.faces.new((bm.verts[t.index1], bm.verts[t.index2], bm.verts[t.index3]))
         bm.faces.ensure_lookup_table()
 
         bm.to_mesh(me)
