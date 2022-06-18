@@ -46,5 +46,5 @@ def zeros(file, n):
 
 
 def full_bytes(file, n):
-    for _ in range(0, n):
+    for _ in range(n):
         u8(file, 255)

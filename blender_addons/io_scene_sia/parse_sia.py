@@ -14,7 +14,8 @@ class SiaParseError(Exception):
 def read_header(sia_file: BufferedReader):
     header = sia_file.read(4)
     if header != b"SHSM":
-        raise SiaParseError("Expexted header SHSM, but found {}".format(header))
+        raise SiaParseError(
+            "Expexted header SHSM, but found {}".format(header))
 
 
 def read_file_end(sia_file: BufferedReader, num: int):
@@ -29,7 +30,8 @@ def read_file_end(sia_file: BufferedReader, num: int):
 
 def load(path: str):
     if not os.path.exists(path) or os.path.splitext(path)[1] != ".sia":
-        raise SiaParseError("{} does not exist or is not a valid sia file".format(path))
+        raise SiaParseError(
+            "{} does not exist or is not a valid sia file".format(path))
 
     with open(path, "rb") as sia_file:
         model = data_types.Model()
@@ -100,7 +102,8 @@ def load(path: str):
                 texture_num = read_utils.u8(sia_file)
                 for _ in range(texture_num):
                     texture = data_types.Texture(
-                        data_types.TextureKind.from_u8(read_utils.u8(sia_file)),
+                        data_types.TextureKind.from_u8(
+                            read_utils.u8(sia_file)),
                         read_utils.string(sia_file),
                     )
                     material.textures.append(texture)
@@ -114,7 +117,8 @@ def load(path: str):
         # There seems to be only 10 bits checked, so maybe it's a u16 instead,
         # and the other 16 bits are something else
         # could any of these be vertex color?, cause that would be handy
-        model.settings = data_types.Bitfield.from_number(read_utils.u32(sia_file))
+        model.settings = data_types.Bitfield.from_number(
+            read_utils.u32(sia_file))
 
         # Result so far:
         # 1 and 2 Always checked, normal and position I think
@@ -235,9 +239,10 @@ def load(path: str):
         # num did not immediately seem like a bitfield
         if num in (0, 212, 255, 40, 104, 102, 129, 183, 216, 223):
             pass
-        # TODO: These can be combined and concened a lot
+        # TODO: These can be combined and concenced a lot
         elif num2 == 0 and (
-            num in (75, 225, 221, 114, 70, 245, 254, 215, 220, 198, 233, 252, 5, 87)
+            num in (75, 225, 221, 114, 70, 245, 254,
+                    215, 220, 198, 233, 252, 5, 87)
         ):
             pass
         elif (num in (114, 70, 254, 215, 220, 198, 233, 252, 5, 87) and num2 != 0) or (
@@ -251,7 +256,8 @@ def load(path: str):
         ):
             kind = read_utils.string_u8_len(sia_file)
             if kind == b"mesh_type":
-                mesh_type = data_types.MeshType.from_u8(read_utils.u8(sia_file))
+                mesh_type = data_types.MeshType.from_u8(
+                    read_utils.u8(sia_file))
                 if mesh_type == data_types.MeshType.VariableLength:
                     model.end_kind = data_types.EndKind.MeshType(
                         read_utils.string(sia_file)
@@ -347,9 +353,11 @@ def load(path: str):
 
         instances = read_utils.u32(sia_file)
         for i in range(0, instances):
-            instance_type = read_utils.u32(sia_file)  # not sure what this means.
+            # not sure what this means.
+            instance_type = read_utils.u32(sia_file)
             x = read_utils.f32(sia_file)  # Side to side, no idea if X or not.
-            z = read_utils.f32(sia_file)  # Back and forwards, no idea if Z or not.
+            # Back and forwards, no idea if Z or not.
+            z = read_utils.f32(sia_file)
             y = read_utils.f32(sia_file)  # Up and down
             read_utils.skip(
                 sia_file, 40

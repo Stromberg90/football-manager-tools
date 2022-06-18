@@ -146,32 +146,34 @@ def save(
                 if n.bl_idname == "ShaderNodeTexImage":
                     texture_path = n.image.filepath_from_user()
                     is_extracted_texture = texture_path.startswith(
-                        os.path.abspath(addon_preferences.base_extracted_textures_path)
+                        os.path.abspath(
+                            addon_preferences.base_extracted_textures_path)
                         + os.sep
                     )
                     is_exported_texture = texture_path.startswith(
-                        os.path.abspath(addon_preferences.base_textures_path) + os.sep
+                        os.path.abspath(
+                            addon_preferences.base_textures_path) + os.sep
                     )
-                    if not (is_exported_texture or is_extracted_texture):
-                        if not is_exported_texture:
-                            raise Exception(
-                                "{} is not in the base folder texture path of {} it can be changed in the addon preferences".format(
-                                    texture_path, addon_preferences.base_textures_path
-                                )
+                    if not is_exported_texture:
+                        raise Exception(
+                            "{} is not in the base folder texture path of {} it can be changed in the addon preferences".format(
+                                texture_path, addon_preferences.base_textures_path
                             )
-                        elif not is_extracted_texture:
-                            raise Exception(
-                                "{} is not in the base extracted folder texture path of {} it can be changed in the addon preferences".format(
-                                    texture_path,
-                                    addon_preferences.base_extracted_textures_path,
-                                )
+                        )
+                    elif not is_extracted_texture:
+                        raise Exception(
+                            "{} is not in the base extracted folder texture path of {} it can be changed in the addon preferences".format(
+                                texture_path,
+                                addon_preferences.base_extracted_textures_path,
                             )
+                        )
 
                     basename = os.path.basename(texture_path)
                     (filename, ext) = os.path.splitext(basename)
 
                     if ext != ".dds":
-                        raise Exception("{} is not a dds file".format(basename))
+                        raise Exception(
+                            "{} is not a dds file".format(basename))
 
                     if is_exported_texture:
                         relative_path = os.path.splitext(
