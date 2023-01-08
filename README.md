@@ -6,14 +6,14 @@ Imported | Exported
 <img src="images/boardroom.png" height=200/>|<img src="images/custom_model_01.jpg" height=200/>
 
 # Usage
-1. Open Football Manager 2021 Resource Archiver(comes with the game on steam).
+1. Open Football Manager 2023 Resource Archiver(comes with the game on steam).
 2. Extract simatchviewer and simatchviewer-pc to a folder.
 > simatchviewer is models, simatchviewer-pc is textures
 3. Download the latest zip from [releases](https://github.com/Stromberg90/football-manager-tools/releases).
 4. Open Blender.
 5. Go to Edit->Preferences->Addons then the install button on the upper right corner and select the zip you downloaded.
 6. Enable addon, set **Base Extracted Textures** to the simatchviewer-pc folder you extracted earlier(for it to automatically assign textures).
-7. Enabled addon and there should now be a **Football Manager 2021 Mesh (.sia)** entry under the import and export menu.
+7. Enabled addon and there should now be a **Football Manager 2023 Mesh (.sia)** entry under the import and export menu.
 
 # Custom Textures
 _Currently these need to be saved with the proper suffixes as written below_
@@ -49,7 +49,6 @@ Assign textures to the your blender meshes like normal, and it will export them 
 ## Export
 - Instances(same as above) is not supported
 - Multiple materials on the same mesh, so for now separate them before exporting
-- Only tested on Football Manager 2021
 
 # Contributing
 Help is appreciated in anyway, however here is some examples.

@@ -15,14 +15,14 @@ def read_header(sia_file: BufferedReader):
     header = sia_file.read(4)
     if header != b"SHSM":
         raise SiaParseError(
-            "Expexted header SHSM, but found {}".format(header))
+            "Expexted header SHSM, but found {!r}".format(header))
 
 
 def read_file_end(sia_file: BufferedReader, num: int):
     end = sia_file.read(4)
     if end != b"EHSM":
         raise SiaParseError(
-            "Expected EHSM, but found {} at file byte position: {} num is {}".format(
+            "Expected EHSM, but found {!r} at file byte position: {} num is {}".format(
                 end, sia_file.tell(), num
             )
         )
@@ -201,35 +201,45 @@ def load(path: str):
         some_number2 = read_utils.u32(sia_file)
 
         # Could be a bit field, not sure, but makes more sense than magic number
-        # probably a bit that says if it is a mesh_type of not.
+        # maybe a bit that says if it is a mesh_type of not.
         num = read_utils.u8(sia_file)
         num2 = 0
         if num in (
-            75,
-            215,
+            5,
             10,
-            212,
-            255,
             34,
-            221,
-            114,
-            70,
-            198,
             40,
-            104,
-            220,
-            252,
+            45,
+            70,
+            74,
+            75,
             87,
+            93,
             102,
+            104,
+            114,
+            127,
             129,
+            167,
+            178,
+            180,
             183,
+            198,
+            207,
+            212,
+            215,
             216,
+            220,
+            221,
             223,
             225,
             233,
+            243,
             245,
+            249,
+            252,
             254,
-            5,
+            255
         ):
             # This seems wierd, and I wonder what data is hiding there.
             read_utils.skip(sia_file, 3)
@@ -237,20 +247,20 @@ def load(path: str):
             num2 = read_utils.u8(sia_file)
 
         # num did not immediately seem like a bitfield
-        if num in (0, 212, 255, 40, 104, 102, 129, 183, 216, 223):
+        if num in (0, 207, 212, 255, 40, 129, 183, 216):
             pass
-        # TODO: These can be combined and concenced a lot
+        # TODO: These can be combined and condenced a lot
         elif num2 == 0 and (
-            num in (75, 225, 221, 114, 70, 245, 254,
-                    215, 220, 198, 233, 252, 5, 87)
+            num in (75, 225, 221, 114, 70, 74, 245, 254, 93, 104,
+                    215, 220, 198, 233, 252, 5, 243, 249, 87, 178, 180, 167, 127, 223, 102)
         ):
             pass
-        elif (num in (114, 70, 254, 215, 220, 198, 233, 252, 5, 87) and num2 != 0) or (
-            num == 221 and num2 == 2
+        elif (num in (114, 70, 254, 215, 220, 243, 198, 233, 252, 5, 87, 180, 178, 167, 127, 223, 249, 102) and num2 != 0) or (
+            num in (221, 74, 93, 104) and num2 == 2
         ):
             read_utils.skip(sia_file, 16)
         elif (
-            (num in (42, 75, 58, 10, 34))
+            (num in (42, 45, 74, 75, 58, 10, 34))
             or (num in (225, 245) and num2 != 0)
             or (num == 221 and num2 == 42)
         ):
@@ -335,7 +345,15 @@ def load(path: str):
                     read_utils.u8(sia_file) != 0
                 )
             elif kind == b"is_comp_banner":
-                model.end_kind = data_types.EndKind.IsBanner(
+                model.end_kind = data_types.EndKind.IsCompBanner(
+                    read_utils.u8(sia_file) != 0
+                )
+            elif kind == b"is_match_ball":
+                model.end_kind = data_types.EndKind.IsMatchBall(
+                    read_utils.u8(sia_file) != 0
+                )
+            elif kind == b"is_team_logo":
+                model.end_kind = data_types.EndKind.IsTeamLogo(
                     read_utils.u8(sia_file) != 0
                 )
             else:

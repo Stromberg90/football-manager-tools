@@ -24,8 +24,8 @@ from bpy_extras.io_utils import (
 bl_info = {
     "name": "SIA Format",
     "author": "Andreas Strømberg",
-    "version": (1, 0, 0),
-    "blender": (2, 91, 2),
+    "version": (1, 2, 0),
+    "blender": (3, 4, 0),
     "location": "File > Import-Export",
     "description": "Import-Export SIA",
     "category": "Import-Export",
@@ -154,12 +154,12 @@ classes = (ExportSIA, SIA_PT_export_include, ImportSIA, IoSiaPreferences)
 
 def menu_func_export(self, context):
     self.layout.operator(ExportSIA.bl_idname,
-                         text="Football Manager 2021 Mesh (.sia)")
+                         text="Football Manager 2023 Mesh (.sia)")
 
 
 def menu_func_import(self, context):
     self.layout.operator(ImportSIA.bl_idname,
-                         text="Football Manager 2021 Mesh (.sia)")
+                         text="Football Manager 2023 Mesh (.sia)")
 
 
 def register():

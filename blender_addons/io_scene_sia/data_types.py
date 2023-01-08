@@ -238,12 +238,8 @@ class EndKindType(IntEnum):
     MeshType = 0
     IsBanner = 1
     IsCompBanner = 2
-
-    @staticmethod
-    def from_u8(u8):
-        for end_kind in EndKindType:
-            if end_kind == u8:
-                return end_kind
+    IsMatchBall = 3
+    IsTeamLogo = 4
 
 
 class EndKind:
@@ -269,5 +265,19 @@ class EndKind:
     def IsCompBanner(value):
         result = EndKind()
         result.type = EndKindType.IsCompBanner
+        result.value = value
+        return result
+
+    @staticmethod
+    def IsMatchBall(value):
+        result = EndKind()
+        result.type = EndKindType.IsMatchBall
+        result.value = value
+        return result
+
+    @staticmethod
+    def IsTeamLogo(value):
+        result = EndKind()
+        result.type = EndKindType.IsTeamLogo
         result.value = value
         return result
