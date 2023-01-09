@@ -12,7 +12,7 @@ Imported | Exported
 3. Download the latest zip from [releases](https://github.com/Stromberg90/football-manager-tools/releases).
 4. Open Blender.
 5. Go to Edit->Preferences->Addons then the install button on the upper right corner and select the zip you downloaded.
-6. Enable addon, set **Base Extracted Textures** to the simatchviewer-pc folder you extracted earlier(for it to automatically assign textures).
+6. Enable addon, set **Base Extracted Textures** to the simatchviewer-pc folder you extracted earlier(to automatically assign textures).
 7. Enabled addon and there should now be a **Football Manager 2023 Mesh (.sia)** entry under the import and export menu.
 
 # Custom Textures

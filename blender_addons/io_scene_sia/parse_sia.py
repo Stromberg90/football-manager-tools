@@ -48,7 +48,8 @@ def load(path: str):
         # another bouding box value. Maybe sphere radius, I had a look but not sure.
         read_utils.f32(sia_file)
 
-        model.bounding_box = data_types.BoundingBox.read_from_file(sia_file)
+        model.bounding_box = data_types.BoundingBox.read_from_file(
+            sia_file)
 
         objects_num = read_utils.u32(sia_file)
 
@@ -171,7 +172,8 @@ def load(path: str):
                     # one byte per color plus alpha
                     read_utils.skip(sia_file, 4)
 
-                mesh.vertices.append(data_types.Vertex(position, normal, uv))
+                mesh.vertices.append(
+                    data_types.Vertex(position, normal, uv))
 
         # This is how many indecies there is,
         number_of_triangles = int(read_utils.u32(sia_file) / 3)
@@ -197,73 +199,26 @@ def load(path: str):
         # are to read after, maybe bones or something?  But I've yet to
         # find out exactly how they related to each other, it doesn't
         # seem to be as simple as some_number * some other number
-        some_number = read_utils.u32(sia_file)
-        some_number2 = read_utils.u32(sia_file)
+
+        # this is my best guess for now
+        is_skinned = read_utils.u32(sia_file) == 1
+        # this is my best guess for now
+        number_of_bones = read_utils.u32(sia_file)
 
         # Could be a bit field, not sure, but makes more sense than magic number
         # maybe a bit that says if it is a mesh_type of not.
-        num = read_utils.u8(sia_file)
-        num2 = 0
-        if num in (
-            5,
-            10,
-            34,
-            40,
-            45,
-            70,
-            74,
-            75,
-            87,
-            93,
-            102,
-            104,
-            114,
-            127,
-            129,
-            167,
-            178,
-            180,
-            183,
-            198,
-            207,
-            212,
-            215,
-            216,
-            220,
-            221,
-            223,
-            225,
-            233,
-            243,
-            245,
-            249,
-            252,
-            254,
-            255
-        ):
+        num = None
+        if is_skinned:
             # This seems wierd, and I wonder what data is hiding there.
-            read_utils.skip(sia_file, 3)
-            read_utils.skip(sia_file, (some_number2 * 56))
-            num2 = read_utils.u8(sia_file)
+            read_utils.skip(sia_file, 4)
+            read_utils.skip(sia_file, (number_of_bones * 56))
+            num = read_utils.u8(sia_file)
+        else:
+            num = read_utils.u8(sia_file)
 
-        # num did not immediately seem like a bitfield
-        if num in (0, 207, 212, 255, 40, 129, 183, 216):
-            pass
-        # TODO: These can be combined and condenced a lot
-        elif num2 == 0 and (
-            num in (75, 225, 221, 114, 70, 74, 245, 254, 93, 104,
-                    215, 220, 198, 233, 252, 5, 243, 249, 87, 178, 180, 167, 127, 223, 102)
-        ):
-            pass
-        elif (num in (114, 70, 254, 215, 220, 243, 198, 233, 252, 5, 87, 180, 178, 167, 127, 223, 249, 102) and num2 != 0) or (
-            num in (221, 74, 93, 104) and num2 == 2
-        ):
+        if num == 2:
             read_utils.skip(sia_file, 16)
-        elif (
-            (num in (42, 45, 74, 75, 58, 10, 34))
-            or (num in (225, 245) and num2 != 0)
-            or (num == 221 and num2 == 42)
-        ):
+        elif num == 42:
             kind = read_utils.string_u8_len(sia_file)
             if kind == b"mesh_type":
                 mesh_type = data_types.MeshType.from_u8(
@@ -294,7 +249,8 @@ def load(path: str):
                         read_utils.skip(sia_file, 80)
                         # This is probably position and such
                         entries_num = read_utils.u32(sia_file)
-                        read_utils.skip(sia_file, int(entries_num * 48))
+                        read_utils.skip(
+                            sia_file, int(entries_num * 48))
                         if cap_type == 0:
                             read_utils.string(sia_file)
                             read_utils.string(sia_file)
@@ -362,18 +318,21 @@ def load(path: str):
                         num, kind, sia_file.tell()
                     )
                 )
-        else:
+        elif num == None:
             raise SiaParseError(
-                "{} is a unknown type at file byte position: {}".format(
+                "{} type is None at position: {}".format(
                     num, sia_file.tell()
                 )
             )
+        else:
+            pass
 
         instances = read_utils.u32(sia_file)
         for i in range(0, instances):
             # not sure what this means.
             instance_type = read_utils.u32(sia_file)
-            x = read_utils.f32(sia_file)  # Side to side, no idea if X or not.
+            # Side to side, no idea if X or not.
+            x = read_utils.f32(sia_file)
             # Back and forwards, no idea if Z or not.
             z = read_utils.f32(sia_file)
             y = read_utils.f32(sia_file)  # Up and down
