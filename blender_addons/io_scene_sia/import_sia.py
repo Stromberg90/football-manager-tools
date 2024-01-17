@@ -8,8 +8,8 @@ from . import utils
 from . import data_types
 
 
-def load(context, filepath, addon_preferences):
-    node_group_name = "FM Material v1.0"
+def load(context, filepath, addon_preferences, import_instances=False, position=None):
+    node_group_name = "FM Material v1.1"
     fm_material_path = os.path.realpath(__file__)
     fm_material_path = os.path.dirname(fm_material_path)
     fm_material_path = bpy.path.abspath(
@@ -48,6 +48,8 @@ def load(context, filepath, addon_preferences):
             material.name = material.name.decode("utf-8", "replace")
             if material not in materials:
                 materials[material] = bpy.data.materials.new(material.name)
+            else:
+                continue
 
             mat = materials[material]
 
@@ -103,7 +105,7 @@ def load(context, filepath, addon_preferences):
                         ro_me_ao.outputs["Color"],
                     )
                     texture = bpy.data.images.load(texture_path, check_existing=True)
-                    texture.colorspace_settings.name = "Linear"
+                    texture.colorspace_settings.name = "Linear Rec.709"
                     ro_me_ao.image = texture
                 elif texture.kind == data_types.TextureKind.Normal:
                     normal = nodes.new("ShaderNodeTexImage")
@@ -125,26 +127,54 @@ def load(context, filepath, addon_preferences):
                         mask.outputs["Color"],
                     )
                     texture = bpy.data.images.load(texture_path, check_existing=True)
-                    texture.colorspace_settings.name = "Linear"
+                    texture.colorspace_settings.name = "Linear Rec.709"
                     mask.image = texture
+                elif texture.kind == data_types.TextureKind.Lightmap:
+                    lightmap = nodes.new("ShaderNodeTexImage")
+                    mat.node_tree.links.new(
+                        node_group.inputs["Lightmap"],
+                        lightmap.outputs["Color"],
+                    )
+                    texture = bpy.data.images.load(texture_path, check_existing=True)
+                    texture.colorspace_settings.name = "Linear Rec.709"
+                    lightmap.image = texture
+
+                    uv_map = nodes.new("ShaderNodeUVMap")
+                    uv_map.uv_map = "UVMap.001"  # TODO: I should move the material creation after the making the uv sets, incase the name changes in the future
+                    mat.node_tree.links.new(
+                        lightmap.inputs["Vector"],
+                        uv_map.outputs["UV"],
+                    )
 
             me.materials.append(materials[material])
 
         bm = bmesh.new()
-        uvs = []
         for v in mesh.vertices:
             bm.verts.new((v.position.x, v.position.y, v.position.z))
-            uvs.append((v.uv.x, (v.uv.y * -1) + 1))
         bm.verts.ensure_lookup_table()
         for t in mesh.triangles:
             bm.faces.new((bm.verts[t.index1], bm.verts[t.index2], bm.verts[t.index3]))
         bm.faces.ensure_lookup_table()
 
         bm.to_mesh(me)
-        uv_set = me.uv_layers.new().data
 
-        uvs = [i for poly in me.polygons for vidx in poly.vertices for i in uvs[vidx]]
-        uv_set.foreach_set("uv", uvs)
+        for uv_index in range(0, len(mesh.vertices[0].texture_coords)):
+            uvs = []
+            uv_set = me.uv_layers.new().data
+
+            for v in mesh.vertices:
+                uvs.append(
+                    (
+                        v.texture_coords[uv_index].x,
+                        (v.texture_coords[uv_index].y * -1) + 1,
+                    )
+                )
+
+            uvs = [
+                i for poly in me.polygons for vidx in poly.vertices for i in uvs[vidx]
+            ]
+            uv_set.foreach_set("uv", uvs)
+
         me.polygons.foreach_set("use_smooth", [True] * len(me.polygons))
 
         me.validate(clean_customdata=False)
@@ -152,7 +182,39 @@ def load(context, filepath, addon_preferences):
 
         obj = bpy.data.objects.new(me.name, me)
         obj.parent = root
+        if position:
+            obj.location.x = position.z
+            obj.location.y = position.x
+            obj.location.z = position.y
+
         collection.objects.link(obj)
+
+    if import_instances:
+        for instance in sia_file.instances:
+            if len(instance.path) == 0:
+                continue
+
+            instance_path = utils.absolute_asset_path(
+                addon_preferences.base_extracted_meshes_path,
+                instance.path.decode("utf-8", "replace"),
+            )
+            alternative_instance_path = utils.absolute_asset_path(
+                addon_preferences.base_meshes_path,
+                instance.path.decode("utf-8", "replace"),
+            )
+            instance_base = os.path.splitext(instance_path)[0]
+            alternative_instance_base = os.path.splitext(alternative_instance_path)[0]
+
+            ext = ".sia"
+            if os.path.exists(instance_base + ext):
+                instance_path = instance_base + ext
+            elif os.path.exists(alternative_instance_base + ext):
+                instance_path = alternative_instance_base + ext
+
+            if os.path.exists(instance_path):
+                load(context, instance_path, addon_preferences, instance.position)
+            else:
+                print("Couldn't not load ", instance_path)
 
     view_layer.objects.active = root
 

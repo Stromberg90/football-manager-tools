@@ -8,10 +8,7 @@ if "bpy" in locals():
 
 import bpy
 
-from bpy.props import (
-    StringProperty,
-    BoolProperty,
-)
+from bpy.props import StringProperty, BoolProperty, EnumProperty
 
 from bpy_extras.io_utils import (
     ExportHelper,
@@ -24,8 +21,8 @@ from bpy_extras.io_utils import (
 bl_info = {
     "name": "SIA Format",
     "author": "Andreas Strømberg",
-    "version": (1, 2, 0),
-    "blender": (3, 4, 0),
+    "version": (1, 3, 0),
+    "blender": (4, 0, 0),
     "location": "File > Import-Export",
     "description": "Import-Export SIA",
     "category": "Import-Export",
@@ -35,7 +32,7 @@ bl_info = {
 
 @orientation_helper(axis_forward="Y", axis_up="Z")
 class ExportSIA(bpy.types.Operator, ExportHelper):
-    """Save a SIA File"""
+    """Saves a SIA File"""
 
     bl_idname = "export_scene.sia"
     bl_label = "Export SIA"
@@ -67,7 +64,7 @@ class ExportSIA(bpy.types.Operator, ExportHelper):
 
 
 class ImportSIA(bpy.types.Operator, ExportHelper):
-    """Save a SIA File"""
+    """Imports a SIA File"""
 
     bl_idname = "import_scene.sia"
     bl_label = "Import SIA"
@@ -79,11 +76,20 @@ class ImportSIA(bpy.types.Operator, ExportHelper):
         options={"HIDDEN"},
     )
 
+    import_instances: BoolProperty(
+        name="Import Instances",
+        description="Imports Instances from file, these are other models being referenced.",
+        default=False,
+    )
+
     def execute(self, context):
         from . import import_sia
 
         return import_sia.load(
-            context, self.filepath, context.preferences.addons[__name__].preferences
+            context,
+            self.filepath,
+            context.preferences.addons[__name__].preferences,
+            self.import_instances,
         )
 
 
@@ -153,13 +159,11 @@ classes = (ExportSIA, SIA_PT_export_include, ImportSIA, IoSiaPreferences)
 
 
 def menu_func_export(self, context):
-    self.layout.operator(ExportSIA.bl_idname,
-                         text="Football Manager 2023 Mesh (.sia)")
+    self.layout.operator(ExportSIA.bl_idname, text="Football Manager 2024 Mesh (.sia)")
 
 
 def menu_func_import(self, context):
-    self.layout.operator(ImportSIA.bl_idname,
-                         text="Football Manager 2023 Mesh (.sia)")
+    self.layout.operator(ImportSIA.bl_idname, text="Football Manager 2024 Mesh (.sia)")
 
 
 def register():

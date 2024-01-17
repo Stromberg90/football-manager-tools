@@ -18,6 +18,45 @@ from . import write_utils
 from . import utils
 
 
+def texture_relative_path(node, addon_preferences):
+    texture_path = node.image.filepath_from_user()
+
+    basename = os.path.basename(texture_path)
+    ext = os.path.splitext(basename)[1]
+
+    if ext != ".dds":
+        raise Exception("{} is not a dds file".format(basename))
+
+    is_extracted_texture = texture_path.startswith(
+        os.path.abspath(addon_preferences.base_extracted_textures_path) + os.sep
+    )
+    is_exported_texture = texture_path.startswith(
+        os.path.abspath(addon_preferences.base_textures_path) + os.sep
+    )
+
+    if not is_exported_texture and not is_extracted_texture:
+        raise Exception(
+            "{} is not in any of the texture folders, check that it's set to the correct folder in the addon preferences".format(
+                texture_path
+            )
+        )
+
+    relative_path = None
+    if is_exported_texture:
+        relative_path = os.path.splitext(
+            utils.asset_path(texture_path, addon_preferences.base_textures_path)
+        )[0]
+    elif is_extracted_texture:
+        relative_path = os.path.splitext(
+            utils.asset_path(
+                texture_path,
+                addon_preferences.base_extracted_textures_path,
+            )
+        )[0]
+
+    return relative_path
+
+
 def triangulate(me):
     bm = bmesh.new()
     bm.from_mesh(me)
@@ -39,19 +78,18 @@ def save(
     else:
         context_objects = context.view_layer.objects
 
-    global_matrix = (
-        axis_conversion(
-            to_forward=axis_forward,
-            to_up=axis_up,
-        ).to_4x4()
-        @ Matrix.Scale(1.0, 4)
-    )
+    global_matrix = axis_conversion(
+        to_forward=axis_forward,
+        to_up=axis_up,
+    ).to_4x4() @ Matrix.Scale(1.0, 4)
 
     model = data_types.Model()
     model.bounding_box = data_types.BoundingBox()
     model.name = os.path.splitext(os.path.basename(filepath))[0]
 
     valid_objects = []
+    uses_lightmap = False
+
     for obj in context_objects:
         if obj.type not in ["MESH", "CURVE"]:
             continue
@@ -90,8 +128,6 @@ def save(
         # Since this is slow, it only needs to do this if export tangent is checked.
         mesh.calc_tangents()
 
-        active_uv_layer = mesh.uv_layers.active.data
-
         sia_mesh.id = mesh_index
 
         mesh_verts = mesh.vertices
@@ -106,29 +142,37 @@ def save(
                 used_material_indecies.append(f.material_index)
             # by checking material_index on f, I'll be able to
             # split materials into their own meshes.
-            uv = [
-                active_uv_layer[l].uv[:]
-                for l in range(f.loop_start, f.loop_start + f.loop_total)
-            ]
+            uv = []
+            for uv_layer in mesh.uv_layers:
+                uv.append(
+                    [
+                        uv_layer.uv[loop].vector[:]
+                        for loop in range(f.loop_start, f.loop_start + f.loop_total)
+                    ]
+                )
             pf = ply_faces[i]
             normals = []
             tangents = []
-            for i, li in enumerate(f.loop_indices):
+
+            for li in f.loop_indices:
                 normals.append(mesh.loops[li].normal[:])
                 tangents.append(mesh.loops[li].tangent[:])
+
             for j, vidx in enumerate(f.vertices):
                 normal = normals[j]
                 tangent = tangents[j]
-                uvcoord = uv[j][0], ((uv[j][1] * -1) + 1)
+                uvcoords = []
+                for uv_point in uv:
+                    uvcoords.append((uv_point[j][0], (uv_point[j][1] * -1) + 1))
 
-                key = normal, uvcoord
+                key = normal, uvcoords[0]
 
                 vdict_local = vdict[vidx]
                 pf_vidx = vdict_local.get(key)
 
                 if pf_vidx is None:
                     pf_vidx = vdict_local[key] = vert_count
-                    ply_verts.append((vidx, normal, uvcoord, tangent))
+                    ply_verts.append((vidx, normal, uvcoords, tangent))
                     vert_count += 1
 
                 pf.append(pf_vidx)
@@ -142,76 +186,80 @@ def save(
         for material in materials:
             node_tree = material.node_tree
             texture_map = {}
-            for n in node_tree.nodes:
-                if n.bl_idname == "ShaderNodeTexImage":
-                    texture_path = n.image.filepath_from_user()
-                    is_extracted_texture = texture_path.startswith(
-                        os.path.abspath(
-                            addon_preferences.base_extracted_textures_path)
-                        + os.sep
-                    )
-                    is_exported_texture = texture_path.startswith(
-                        os.path.abspath(
-                            addon_preferences.base_textures_path) + os.sep
-                    )
-                    if not is_exported_texture:
-                        raise Exception(
-                            "{} is not in the base folder texture path of {} it can be changed in the addon preferences".format(
-                                texture_path, addon_preferences.base_textures_path
-                            )
-                        )
-                    elif not is_extracted_texture:
-                        raise Exception(
-                            "{} is not in the base extracted folder texture path of {} it can be changed in the addon preferences".format(
-                                texture_path,
-                                addon_preferences.base_extracted_textures_path,
-                            )
-                        )
+            for node in node_tree.nodes:
+                if node.bl_idname == "ShaderNodeOutputMaterial":
+                    surface_input = node.inputs["Surface"]
+                    if surface_input:
+                        if len(surface_input.links) > 0:
+                            input = surface_input.links[0].from_node
+                            if input.bl_idname == "ShaderNodeGroup":
+                                if input.node_tree.name.startswith("FM Material"):
+                                    fm_material = input
+                                    albedo = fm_material.inputs["Albedo"]
+                                    ro_me_ao = fm_material.inputs[
+                                        "Roughness Metallic AO"
+                                    ]
+                                    normal = fm_material.inputs["Normal"]
+                                    mask = fm_material.inputs["Mask"]
+                                    lightmap = fm_material.inputs["Lightmap"]
 
-                    basename = os.path.basename(texture_path)
-                    (filename, ext) = os.path.splitext(basename)
-
-                    if ext != ".dds":
-                        raise Exception(
-                            "{} is not a dds file".format(basename))
-
-                    if is_exported_texture:
-                        relative_path = os.path.splitext(
-                            utils.asset_path(
-                                texture_path, addon_preferences.base_textures_path
-                            )
-                        )[0]
-                    elif is_extracted_texture:
-                        relative_path = os.path.splitext(
-                            utils.asset_path(
-                                texture_path,
-                                addon_preferences.base_extracted_textures_path,
-                            )
-                        )[0]
-
-                    if filename.endswith("[al]"):
-                        texture_map[data_types.TextureKind.Albedo] = relative_path
-                    elif filename.endswith("[no]"):
-                        texture_map[data_types.TextureKind.Normal] = relative_path
-                    elif filename.endswith("[ro]_[me]_[ao]") or filename.endswith(
-                        "[ro]_[me]"
-                    ):
-                        texture_map[
-                            data_types.TextureKind.RoughnessMetallicAmbientOcclusion
-                        ] = relative_path
-                    elif filename.endswith("[ma]"):
-                        texture_map[data_types.TextureKind.Mask] = relative_path
-                    else:
-                        raise Exception(
-                            "{} does not contain any of the valid suffixes".format(
-                                basename
-                            )
-                        )
+                                    if len(albedo.links) > 0:
+                                        input_node = albedo.links[0].from_node
+                                        if input_node.bl_idname == "ShaderNodeTexImage":
+                                            relative_path = texture_relative_path(
+                                                input_node, addon_preferences
+                                            )
+                                            if relative_path:
+                                                texture_map[
+                                                    data_types.TextureKind.Albedo
+                                                ] = relative_path
+                                    if len(ro_me_ao.links) > 0:
+                                        input_node = ro_me_ao.links[0].from_node
+                                        if input_node.bl_idname == "ShaderNodeTexImage":
+                                            relative_path = texture_relative_path(
+                                                input_node, addon_preferences
+                                            )
+                                            if relative_path:
+                                                texture_map[
+                                                    data_types.TextureKind.RoughnessMetallicAmbientOcclusion
+                                                ] = relative_path
+                                    if len(normal.links) > 0:
+                                        input_node = normal.links[0].from_node
+                                        if input_node.bl_idname == "ShaderNodeTexImage":
+                                            relative_path = texture_relative_path(
+                                                input_node, addon_preferences
+                                            )
+                                            if relative_path:
+                                                texture_map[
+                                                    data_types.TextureKind.Normal
+                                                ] = relative_path
+                                    if len(mask.links) > 0:
+                                        input_node = mask.links[0].from_node
+                                        if input_node.bl_idname == "ShaderNodeTexImage":
+                                            relative_path = texture_relative_path(
+                                                input_node, addon_preferences
+                                            )
+                                            if relative_path:
+                                                texture_map[
+                                                    data_types.TextureKind.Mask
+                                                ] = relative_path
+                                    if len(lightmap.links) > 0:
+                                        input_node = lightmap.links[0].from_node
+                                        if input_node.bl_idname == "ShaderNodeTexImage":
+                                            relative_path = texture_relative_path(
+                                                input_node, addon_preferences
+                                            )
+                                            if relative_path:
+                                                uses_lightmap = True
+                                                texture_map[
+                                                    data_types.TextureKind.Lightmap
+                                                ] = relative_path
 
             sia_material = data_types.Material()
             sia_material.name = material.name
-            sia_material.kind = "base"
-            for (kind, path) in texture_map.items():
+            # sia_material.kind = "base"
+            sia_material.kind = "match_ball"
+            for kind, path in texture_map.items():
                 sia_texture = data_types.Texture()
                 sia_texture.path = path
                 sia_texture.kind = kind
@@ -222,10 +270,13 @@ def save(
         # TODO: Move this inline into the loop above
         for index, normal, uv_coords, tangent in ply_verts:
             vert = mesh_verts[index]
+            uv_sets = []
+            for uv_set in uv_coords:
+                uv_sets.append(data_types.Vector2(*uv_set))
             vertex = data_types.Vertex(
                 data_types.Vector3(*vert.co[:]),
                 data_types.Vector3(*normal),
-                data_types.Vector2(*uv_coords),
+                uv_sets,
                 data_types.Vector3(*tangent),
             )
             model.bounding_box.update_with_vector(vertex.position)
@@ -294,8 +345,14 @@ def save(
             # write_utils.u32(file, mesh.id)
             # might be the material type, since they need to be specific values for lighting to work.
 
-            for byte in [59, 194, 144, 210]:
-                write_utils.u8(file, byte)
+            if uses_lightmap:
+                for byte in [20, 153, 150, 225]:
+                    write_utils.u8(
+                        file, byte
+                    )  # I did mess around with it a little bit as a bitfield, it didn't give any results
+            else:
+                for byte in [59, 194, 144, 210]:
+                    write_utils.u8(file, byte)
 
             write_utils.zeros(file, 4)
             write_utils.full_bytes(file, 4)
@@ -320,12 +377,18 @@ def save(
         write_utils.u32(file, vertices_total_num)
 
         model.settings = data_types.Bitfield()
-        model.settings[0] = True
-        model.settings[1] = True
-        model.settings[2] = True
-        model.settings[3] = True
-        model.settings[5] = True
-        model.settings[9] = False
+        model.settings[0] = True  # When set to false the entire mesh is gone
+        model.settings[
+            1
+        ] = True  # When set to false there is no color information, only what looks like roughness
+        model.settings[
+            2
+        ] = True  # When I set this to false it kinda does the same thing as the lightmap underneath but with the color texture
+        model.settings[
+            3
+        ] = True  # Weird when I turned this to false, it still showed the lightmap but the texture was projected from like top down
+        model.settings[5] = True  # Don't see any difference
+        model.settings[9] = True  # Don't see any difference
         write_utils.u32(file, model.settings.number())
 
         for mesh in model.meshes:
@@ -335,17 +398,20 @@ def save(
                 if model.settings[1]:
                     write_utils.vector3(file, vertex.normal)
                 if model.settings[2]:
-                    write_utils.vector2(file, vertex.uv)
+                    write_utils.vector2(file, vertex.texture_coords[0])
                 if model.settings[3]:
-                    # TODO: Write second uv/lightmap
-                    write_utils.vector2(file, vertex.uv)
+                    if len(vertex.texture_coords) == 1:
+                        write_utils.vector2(file, vertex.texture_coords[0])
+                    else:
+                        write_utils.vector2(file, vertex.texture_coords[1])
                 if model.settings[5]:
-                    # Thought this could be tangents, but why is the one more value at the end then.
+                    # Thought this could be tangents, but why is there one more value at the end then.
                     write_utils.vector3(file, vertex.tangent)
                     write_utils.f32(file, 1)
                 if model.settings[9]:
                     # When I've seen this it has been all F's
                     # as mentioned in the parse_sia file, might be vertex color.
+                    # although setting them all to zero I could not see a difference
                     write_utils.full_bytes(file, 4)
 
         write_utils.u32(file, number_of_triangles * 3)

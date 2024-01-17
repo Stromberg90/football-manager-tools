@@ -14,8 +14,7 @@ class SiaParseError(Exception):
 def read_header(sia_file: BufferedReader):
     header = sia_file.read(4)
     if header != b"SHSM":
-        raise SiaParseError(
-            "Expexted header SHSM, but found {!r}".format(header))
+        raise SiaParseError("Expexted header SHSM, but found {!r}".format(header))
 
 
 def read_file_end(sia_file: BufferedReader, num: int):
@@ -30,8 +29,7 @@ def read_file_end(sia_file: BufferedReader, num: int):
 
 def load(path: str):
     if not os.path.exists(path) or os.path.splitext(path)[1] != ".sia":
-        raise SiaParseError(
-            "{} does not exist or is not a valid sia file".format(path))
+        raise SiaParseError("{} does not exist or is not a valid sia file".format(path))
 
     with open(path, "rb") as sia_file:
         model = data_types.Model()
@@ -48,8 +46,7 @@ def load(path: str):
         # another bouding box value. Maybe sphere radius, I had a look but not sure.
         read_utils.f32(sia_file)
 
-        model.bounding_box = data_types.BoundingBox.read_from_file(
-            sia_file)
+        model.bounding_box = data_types.BoundingBox.read_from_file(sia_file)
 
         objects_num = read_utils.u32(sia_file)
 
@@ -80,6 +77,7 @@ def load(path: str):
             # did read them as floats, made no sense.
             # almost seems to be a hash or something,
             # it looks like when the material name is the same, so is this byte sequence.
+            # bits = '{0:08b}'.format(read_utils.u32(sia_file))
             read_utils.skip(sia_file, 4)
 
             # Only observed as zeros
@@ -91,20 +89,19 @@ def load(path: str):
 
             mesh = model.meshes[i]
             assert mesh is not None
-            material_name = read_utils.string(sia_file)
+            material_type = read_utils.string(sia_file)
             materials_num = read_utils.u8(sia_file)
 
             # materials_num is more like material variations it seems.
-            # max I've seen is 2 named static and degraded.
+            # max I've seen is 2, named static and degraded.
             for _ in range(materials_num):
                 material = data_types.Material(
-                    material_name, read_utils.string(sia_file)
+                    material_type, read_utils.string(sia_file)
                 )
                 texture_num = read_utils.u8(sia_file)
                 for _ in range(texture_num):
                     texture = data_types.Texture(
-                        data_types.TextureKind.from_u8(
-                            read_utils.u8(sia_file)),
+                        data_types.TextureKind.from_u8(read_utils.u8(sia_file)),
                         read_utils.string(sia_file),
                     )
                     material.textures.append(texture)
@@ -118,8 +115,7 @@ def load(path: str):
         # There seems to be only 10 bits checked, so maybe it's a u16 instead,
         # and the other 16 bits are something else
         # could any of these be vertex color?, cause that would be handy
-        model.settings = data_types.Bitfield.from_number(
-            read_utils.u32(sia_file))
+        model.settings = data_types.Bitfield.from_number(read_utils.u32(sia_file))
 
         # Result so far:
         # 1 and 2 Always checked, normal and position I think
@@ -135,7 +131,8 @@ def load(path: str):
             mesh = model.meshes[i]
 
             for _ in range(mesh.vertices_num):
-                position, normal, uv = (None, None, None)
+                texture_coords = []
+                position, normal = (None, None)
                 if model.settings[0]:
                     position = data_types.read_vector3(sia_file)
                 else:
@@ -145,12 +142,12 @@ def load(path: str):
                 else:
                     raise SiaParseError("Missing normal flag")
                 if model.settings[2]:  # First uv set flag
-                    uv = data_types.read_vector2(sia_file)
+                    texture_coords.append(data_types.read_vector2(sia_file))
                 else:
-                    uv = data_types.Vector2(0, 0)
+                    texture_coords.append(data_types.Vector2(0, 0))
                 if model.settings[3]:
                     # Lightmap uvs or just the second uv set used for more reasons.
-                    lightmap_uv = data_types.read_vector2(sia_file)
+                    texture_coords.append(data_types.read_vector2(sia_file))
                 if model.settings[4]:
                     read_utils.skip(sia_file, 8)
                 if model.settings[5]:
@@ -173,7 +170,8 @@ def load(path: str):
                     read_utils.skip(sia_file, 4)
 
                 mesh.vertices.append(
-                    data_types.Vertex(position, normal, uv))
+                    data_types.Vertex(position, normal, texture_coords)
+                )
 
         # This is how many indecies there is,
         number_of_triangles = int(read_utils.u32(sia_file) / 3)
@@ -211,7 +209,23 @@ def load(path: str):
         if is_skinned:
             # This seems wierd, and I wonder what data is hiding there.
             read_utils.skip(sia_file, 4)
-            read_utils.skip(sia_file, (number_of_bones * 56))
+            # print(number_of_bones)
+            # print(sia_file.tell())
+
+            # read_utils.skip(sia_file, (number_of_bones * 56))
+            # for mesh in model.meshes:
+            #     print("mesh")
+            #     for vertex in mesh.vertices:
+            #         print("x: ", vertex.position.x, "y: ",
+            #               vertex.position.y, "z: ", vertex.position.z)
+            # print("bones")
+            for _ in range(number_of_bones):
+                # print("bone")
+                for _ in range(14):
+                    # print(
+                    read_utils.f32(sia_file)
+                    # )
+            # print(sia_file.tell())
             num = read_utils.u8(sia_file)
         else:
             num = read_utils.u8(sia_file)
@@ -221,8 +235,7 @@ def load(path: str):
         elif num == 42:
             kind = read_utils.string_u8_len(sia_file)
             if kind == b"mesh_type":
-                mesh_type = data_types.MeshType.from_u8(
-                    read_utils.u8(sia_file))
+                mesh_type = data_types.MeshType.from_u8(read_utils.u8(sia_file))
                 if mesh_type == data_types.MeshType.VariableLength:
                     model.end_kind = data_types.EndKind.MeshType(
                         read_utils.string(sia_file)
@@ -232,9 +245,6 @@ def load(path: str):
                     model.end_kind = data_types.EndKind.MeshType(
                         read_utils.string_u8_len(sia_file)
                     )
-                    read_utils.skip(sia_file, 5)
-                    read_file_end(sia_file, num)
-                    return model
                 elif mesh_type == data_types.MeshType.BodyPart:
                     model.end_kind = data_types.EndKind.MeshType(
                         read_utils.string_with_length(sia_file, 4)
@@ -243,37 +253,6 @@ def load(path: str):
                     model.end_kind = data_types.EndKind.MeshType(
                         read_utils.string_with_length(sia_file, 8)
                     )
-                    num_caps = read_utils.u32(sia_file)
-                    for _ in range(num_caps):
-                        cap_type = read_utils.u32(sia_file)
-                        read_utils.skip(sia_file, 80)
-                        # This is probably position and such
-                        entries_num = read_utils.u32(sia_file)
-                        read_utils.skip(
-                            sia_file, int(entries_num * 48))
-                        if cap_type == 0:
-                            read_utils.string(sia_file)
-                            read_utils.string(sia_file)
-                        # TODO: Why are these are the same?
-                        elif cap_type == 2:
-                            read_utils.string(sia_file)
-                            read_utils.u32(sia_file)
-                        elif cap_type == 9:
-                            read_utils.string(sia_file)
-                            read_utils.u32(sia_file)
-                        elif cap_type == 10:
-                            read_utils.string(sia_file)
-                            read_utils.u32(sia_file)
-                        else:
-                            raise SiaParseError(
-                                "{} is a unknown cap type at file byte position: {}".format(
-                                    cap_type, sia_file.tell()
-                                )
-                            )
-
-                    read_file_end(sia_file, num)
-
-                    return model
                 elif mesh_type == data_types.MeshType.StadiumRoof:
                     model.end_kind = data_types.EndKind.MeshType(
                         read_utils.string_with_length(sia_file, 12)
@@ -318,37 +297,55 @@ def load(path: str):
                         num, kind, sia_file.tell()
                     )
                 )
-        elif num == None:
+        elif num is None:
             raise SiaParseError(
-                "{} type is None at position: {}".format(
-                    num, sia_file.tell()
-                )
+                "{} type is None at position: {}".format(num, sia_file.tell())
             )
         else:
             pass
 
         instances = read_utils.u32(sia_file)
         for i in range(0, instances):
+            instance = data_types.Instance()
+
             # not sure what this means.
-            instance_type = read_utils.u32(sia_file)
-            # Side to side, no idea if X or not.
+            instance.type = read_utils.u32(sia_file)
+
             x = read_utils.f32(sia_file)
-            # Back and forwards, no idea if Z or not.
             z = read_utils.f32(sia_file)
-            y = read_utils.f32(sia_file)  # Up and down
-            read_utils.skip(
-                sia_file, 40
-            )  # From trying out different values I think this is a Transformation matrix
+            y = read_utils.f32(sia_file)
+            instance.position = data_types.Vector3(x, y, z)
+            # read_utils.skip(
+            #     sia_file, 40
+            # )
+            # print("40 skip")
+            for j in range(10):
+                # print("byte pos: ", sia_file.tell())
+                # print("{}: {}".format(j, read_utils.f32(sia_file)))
+                read_utils.f32(sia_file)
+
+            # From trying out different values I think this is a Transformation matrix
             # and it matches with 40 bytes I think
-            read_utils.skip(
-                sia_file, 28
-            )  # This data seems separate from the previous one
+            # print("28 skip")
+            for j in range(7):
+                # print("byte pos: ", sia_file.tell())
+                # print("{}: {}".format(j, read_utils.f32(sia_file)))
+                read_utils.f32(sia_file)
+            # read_utils.skip(
+            #     sia_file, 28
+            # )
+            # This data seems separate from the previous one
+
             num1 = read_utils.u32(sia_file)
+            # print("num1: ", num1)
             for _ in range(0, num1):
                 # Possibly mesh data
                 read_utils.skip(sia_file, 48)
-            name = read_utils.string(sia_file)
-            path = read_utils.string(sia_file)
+            instance.name = read_utils.string(sia_file)
+            instance.path = read_utils.string(sia_file)
+            # print(instance.name)
+
+            model.instances.append(instance)
 
         read_file_end(sia_file, num)
 

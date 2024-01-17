@@ -34,7 +34,16 @@ class Model:
         self.bounding_box = BoundingBox()
         self.settings = None
         self.meshes = []
+        self.instances = []
         self.end_kind = None
+
+
+class Instance:
+    def __init__(self):
+        self.type = None
+        self.name = ""
+        self.path = ""
+        self.position = None
 
 
 class BoundingBox:
@@ -125,11 +134,11 @@ def read_vector3(file):
 
 class Vertex:
     def __init__(
-        self, position=Vector3(), normal=Vector3(), uv=Vector2(), tangent=Vector3()
+        self, position=Vector3(), normal=Vector3(), texture_coords=list[Vector2()], tangent=Vector3()
     ):
         self.position = position
         self.normal = normal
-        self.uv = uv
+        self.texture_coords = texture_coords
         self.tangent = tangent
 
 
@@ -170,6 +179,7 @@ class TextureKind(IntEnum):
     RoughnessMetallicAmbientOcclusion = 1
     Normal = 2
     Mask = 5
+    Lightmap = 6
 
     @staticmethod
     def from_u8(u8):
