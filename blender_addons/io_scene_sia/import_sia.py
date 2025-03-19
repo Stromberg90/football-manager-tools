@@ -1,14 +1,19 @@
-import bpy
 import os
+
 import bmesh
+import bpy
 from bpy_extras import node_shader_utils
 from bpy_extras.image_utils import load_image
-from . import parse_sia
-from . import utils
-from . import data_types
+from . import data_types, parse_sia, utils
 
 
-def load(context, filepath, addon_preferences, import_instances=False, position=None):
+def load(
+    context,
+    filepath,
+    addon_preferences,
+    import_instances=False,
+    transform: None | data_types.Transform = None,
+):
     node_group_name = "FM Material v1.1"
     fm_material_path = os.path.realpath(__file__)
     fm_material_path = os.path.dirname(fm_material_path)
@@ -47,8 +52,13 @@ def load(context, filepath, addon_preferences, import_instances=False, position=
         for material in mesh.materials:
             material.name = material.name.decode("utf-8", "replace")
             if material not in materials:
-                materials[material] = bpy.data.materials.new(material.name)
+                materials[material] = bpy.data.materials.new(
+                    "[{}]{}".format(
+                        material.kind.decode("utf-8", "replace"), material.name
+                    )
+                )
             else:
+                me.materials.append(materials[material])
                 continue
 
             mat = materials[material]
@@ -182,15 +192,31 @@ def load(context, filepath, addon_preferences, import_instances=False, position=
 
         obj = bpy.data.objects.new(me.name, me)
         obj.parent = root
-        if position:
-            obj.location.x = position.z
-            obj.location.y = position.x
-            obj.location.z = position.y
+        if transform:
+            root.location.x = transform.position.x
+            root.location.y = transform.position.y
+            root.location.z = transform.position.z
+            root.rotation_euler.x = transform.rotation.x
+            root.rotation_euler.y = transform.rotation.y
+            root.rotation_euler.z = transform.rotation.z
+            root.scale.x = transform.scale.x
+            root.scale.y = transform.scale.y
+            root.scale.z = transform.scale.z
 
         collection.objects.link(obj)
 
     if import_instances:
+        instance: data_types.Instance
         for instance in sia_file.instances:
+            if instance.type == 9:
+                for position in instance.positions:
+                    empty = bpy.data.objects.new("empty", None)
+                    bpy.context.scene.collection.objects.link(empty)
+                    empty.empty_display_size = 2
+                    empty.empty_display_type = "PLAIN_AXES"
+                    empty.location.x = position.x
+                    empty.location.y = position.y
+                    empty.location.z = position.z
             if len(instance.path) == 0:
                 continue
 
@@ -212,7 +238,9 @@ def load(context, filepath, addon_preferences, import_instances=False, position=
                 instance_path = alternative_instance_base + ext
 
             if os.path.exists(instance_path):
-                load(context, instance_path, addon_preferences, instance.position)
+                load(
+                    context, instance_path, addon_preferences, False, instance.transform
+                )
             else:
                 print("Couldn't not load ", instance_path)
 

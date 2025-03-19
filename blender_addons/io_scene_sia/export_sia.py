@@ -9,7 +9,6 @@ import os
 import sys
 from collections import OrderedDict
 from bpy_extras.io_utils import (
-    orientation_helper,
     axis_conversion,
 )
 import pprint
@@ -184,6 +183,15 @@ def save(
         ]
 
         for material in materials:
+            sia_material = data_types.Material()
+            sia_material.name = material.name
+            sia_material.kind = "base"
+
+            if "[" in material.name and "]" in material.name:
+                name_split = material.name.split("[")[1].split("]")
+                sia_material.name = name_split[0]
+                sia_material.kind = name_split[1]
+
             node_tree = material.node_tree
             texture_map = {}
             for node in node_tree.nodes:
@@ -255,14 +263,8 @@ def save(
                                                     data_types.TextureKind.Lightmap
                                                 ] = relative_path
 
-            sia_material = data_types.Material()
-            sia_material.name = material.name
-            # sia_material.kind = "base"
-            sia_material.kind = "match_ball"
             for kind, path in texture_map.items():
-                sia_texture = data_types.Texture()
-                sia_texture.path = path
-                sia_texture.kind = kind
+                sia_texture = data_types.Texture(kind, path)
                 sia_material.textures.append(sia_texture)
 
             sia_mesh.materials.append(sia_material)
@@ -288,7 +290,7 @@ def save(
 
         # TODO: These don't need to be fields, it can compute this when writing it.
         sia_mesh.vertices_num = len(sia_mesh.vertices)
-        sia_mesh.triangles_num = len(sia_mesh.triangles)
+        sia_mesh.indecies_length = len(sia_mesh.triangles)
 
         model.meshes.append(sia_mesh)
 
@@ -376,39 +378,31 @@ def save(
 
         write_utils.u32(file, vertices_total_num)
 
-        model.settings = data_types.Bitfield()
-        model.settings[0] = True  # When set to false the entire mesh is gone
-        model.settings[
-            1
-        ] = True  # When set to false there is no color information, only what looks like roughness
-        model.settings[
-            2
-        ] = True  # When I set this to false it kinda does the same thing as the lightmap underneath but with the color texture
-        model.settings[
-            3
-        ] = True  # Weird when I turned this to false, it still showed the lightmap but the texture was projected from like top down
-        model.settings[5] = True  # Don't see any difference
-        model.settings[9] = True  # Don't see any difference
-        write_utils.u32(file, model.settings.number())
+        model.vertex_flags = data_types.VertexFlags()
+        model.vertex_flags.normal = True
+        model.vertex_flags.uv_set1 = True
+        if uses_lightmap:
+            model.vertex_flags.uv_set2 = True
+        write_utils.u32(file, model.vertex_flags.number())
 
         for mesh in model.meshes:
             for vertex in mesh.vertices:
-                if model.settings[0]:
+                if model.vertex_flags.position:
                     write_utils.vector3(file, vertex.position)
-                if model.settings[1]:
+                if model.vertex_flags.normal:
                     write_utils.vector3(file, vertex.normal)
-                if model.settings[2]:
+                if model.vertex_flags.uv_set1:
                     write_utils.vector2(file, vertex.texture_coords[0])
-                if model.settings[3]:
+                if model.vertex_flags.uv_set2:
                     if len(vertex.texture_coords) == 1:
                         write_utils.vector2(file, vertex.texture_coords[0])
                     else:
                         write_utils.vector2(file, vertex.texture_coords[1])
-                if model.settings[5]:
+                if model.vertex_flags.tangent:
                     # Thought this could be tangents, but why is there one more value at the end then.
                     write_utils.vector3(file, vertex.tangent)
                     write_utils.f32(file, 1)
-                if model.settings[9]:
+                if model.vertex_flags.unknown4:
                     # When I've seen this it has been all F's
                     # as mentioned in the parse_sia file, might be vertex color.
                     # although setting them all to zero I could not see a difference
@@ -423,13 +417,9 @@ def save(
                 else:
                     triangle.write_u16(file)
 
-        write_utils.u32(file, 0)  # some_number
-        write_utils.u32(file, 0)  # some_number2
-
-        write_utils.u8(
-            file, 0
-        )  # num, change this to non-zero without anything else written after, to eat ram.
-
+        write_utils.u32(file, 0)
+        write_utils.u32(file, 0)
+        write_utils.u8(file, 0)
         write_utils.u32(file, 0)  # instances
 
         file.write(b"EHSM")

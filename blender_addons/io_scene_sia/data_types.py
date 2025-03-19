@@ -1,8 +1,8 @@
-from enum import IntEnum
 import sys
+from enum import IntEnum
 from io import BufferedReader
-from . import read_utils
-from . import write_utils
+
+from . import read_utils, write_utils
 
 
 class Bitfield:
@@ -28,22 +28,70 @@ class Bitfield:
             self.__bits != 1 << key
 
 
+class VertexFlags:
+    position = True
+    normal = False
+    uv_set1 = False
+    uv_set2 = False
+    unknown = False
+    tangent = False
+    skin = False
+    unknown2 = False
+    unknown3 = False
+    unknown4 = False
+
+    @staticmethod
+    def from_number(number: int):
+        bitfield = Bitfield.from_number(number)
+
+        flags = VertexFlags()
+        flags.position = bitfield[0]
+        flags.normal = bitfield[1]
+        flags.uv_set1 = bitfield[2]
+        flags.uv_set2 = bitfield[3]
+        flags.unknown = bitfield[4]
+        flags.tangent = bitfield[5]
+        flags.skin = bitfield[6]
+        flags.unknown2 = bitfield[7]
+        flags.unknown3 = bitfield[8]
+        flags.unknown4 = bitfield[9]
+
+        return flags
+
+    def number(self):
+        bitfield = Bitfield()
+
+        bitfield[0] = self.position
+        bitfield[1] = self.normal
+        bitfield[2] = self.uv_set1
+        bitfield[3] = self.uv_set2
+        bitfield[4] = self.unknown
+        bitfield[5] = self.tangent
+        bitfield[6] = self.skin
+        bitfield[7] = self.unknown2
+        bitfield[8] = self.unknown3
+        bitfield[9] = self.unknown4
+
+        return bitfield.number()
+
+
 class Model:
     def __init__(self):
         self.name = ""
-        self.bounding_box = BoundingBox()
-        self.settings = None
+        self.bounding_box: BoundingBox
+        self.vertex_flags: VertexFlags
         self.meshes = []
         self.instances = []
-        self.end_kind = None
+        self.end_kind: None | EndKind
 
 
 class Instance:
     def __init__(self):
-        self.type = None
+        self.type: int
         self.name = ""
         self.path = ""
-        self.position = None
+        self.transform: None | Transform
+        self.positions = []
 
 
 class BoundingBox:
@@ -100,7 +148,7 @@ class Mesh:
     def __init__(self):
         self.id = 0
         self.vertices_num = 0
-        self.triangles_num = 0
+        self.indecies_length = 0
         self.materials = []
         self.vertices = []
         self.triangles = []
@@ -132,9 +180,20 @@ def read_vector3(file):
     return Vector3(x, y, z)
 
 
+class Transform:
+    def __init__(self, position: Vector3, rotation: Vector3, scale: Vector3):
+        self.position = position
+        self.rotation = rotation
+        self.scale = scale
+
+
 class Vertex:
     def __init__(
-        self, position=Vector3(), normal=Vector3(), texture_coords=list[Vector2()], tangent=Vector3()
+        self,
+        position: Vector3,
+        normal: Vector3,
+        texture_coords: list[Vector2],
+        tangent: Vector3 = Vector3(),
     ):
         self.position = position
         self.normal = normal
@@ -180,6 +239,7 @@ class TextureKind(IntEnum):
     Normal = 2
     Mask = 5
     Lightmap = 6
+    Flowmap = 7
 
     @staticmethod
     def from_u8(u8):
@@ -187,11 +247,13 @@ class TextureKind(IntEnum):
             if kind == u8:
                 return kind
 
+        raise Exception("Could not find a texture kind matching number {}".format(u8))
+
 
 class Texture:
-    def __init__(self, kind=None, name=""):
+    def __init__(self, kind: TextureKind, path=""):
         self.kind = kind
-        self.path = name
+        self.path = path
 
     def __eq__(self, other):
         if isinstance(other, Texture):

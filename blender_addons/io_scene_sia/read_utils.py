@@ -12,6 +12,13 @@ def u32(file: BufferedReader) -> int:
 def u16(file: BufferedReader) -> int:
     return unpack('<H', file.read(2))[0]
 
+def u8_array(file: BufferedReader, amount: int) -> list[int]:
+    values = []
+    for _ in range(amount):
+        values.append(unpack("<B", file.read(1))[0])
+
+    return values
+
 
 def u8(file: BufferedReader) -> int:
     return unpack('<B', file.read(1))[0]

@@ -14,3 +14,5 @@ test_suite/*
 *.lock
 blender_addons/import_all_files_in_blender.py
 blender_addons/io_scene_sia.zip
+/sia_editor/target
+/jsb_editor/target
