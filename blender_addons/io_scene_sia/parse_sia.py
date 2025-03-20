@@ -33,21 +33,17 @@ def read_bones(sia_file: BufferedReader, number_of_bones: int):
     # I think this is the "hash" of the rootbone
     read_utils.u8_array(sia_file, 4)
 
-    # read_utils.skip(sia_file, (number_of_bones * 56))
-    # for mesh in model.meshes:
-    #     print("mesh")
-    #     for vertex in mesh.vertices:
-    #         print("x: ", vertex.position.x, "y: ",
-    #               vertex.position.y, "z: ", vertex.position.z)
     # print("bones")
+    print("Bones at: {}".format(sia_file.tell()))
     for _ in range(number_of_bones):
         print("bone")
         # print(read_utils.u8_array(sia_file, 56))
         print("Hash: ", read_utils.u8_array(sia_file, 8), "?")
         for _ in range(12):
-            print(read_utils.u8_array(sia_file, 4))
+            read_utils.u8_array(sia_file, 4)
+            # print("{:.4f}".format(read_utils.f32(sia_file)))
+            # print(read_utils.u8_array(sia_file, 4))
             # print(read_utils.f32(sia_file))
-    # print(sia_file.tell())
 
 
 def read_end_kind(sia_file: BufferedReader, num: int):
@@ -109,7 +105,7 @@ def read_instance(sia_file) -> data_types.Instance:
     instance = data_types.Instance()
 
     # not sure what this means.
-    instance.type = read_utils.u32(sia_file)
+    instance.kind = read_utils.u32(sia_file)
 
     matrix = mathutils.Matrix.Identity(4)
     matrix[0][3] = read_utils.f32(sia_file)
@@ -125,7 +121,10 @@ def read_instance(sia_file) -> data_types.Instance:
     matrix[1][1] = read_utils.f32(sia_file)
     matrix[2][1] = read_utils.f32(sia_file)
 
-    read_utils.skip(sia_file, (4 * 6))
+    matrix[0][2] = read_utils.f32(sia_file)
+    matrix[1][2] = read_utils.f32(sia_file)
+    matrix[2][2] = read_utils.f32(sia_file)
+    matrix[3][2] = read_utils.f32(sia_file)
 
     (loc, rot, scale) = matrix.decompose()
     position = data_types.Vector3(loc.x, loc.y, loc.z)
@@ -134,20 +133,36 @@ def read_instance(sia_file) -> data_types.Instance:
     instance.transform = data_types.Transform(position, rotation, scale)
 
     # I don't know what these are but they seem to share the same values often
-    read_utils.skip(sia_file, (4 * 4))
+    read_utils.skip(sia_file, (4 * 6))
 
     num1 = read_utils.u32(sia_file)
-    if instance.type == 9:
-        print("it is instance kind 9")
-        for _ in range(0, num1 * 4):
+    # print("num1 ", num1)
+    # print("it is instance kind ", instance.kind)
+    # if instance.kind == 9:
+    #     # Has something to do with spectators in the stadiums        
+    #     print(
+    #         "Pos X: {} Y: {} Z: {}".format(position.x, position.y, position.z),
+    #         rotation,
+    #         scale,
+    #     )
+    #     for _ in range(0, num1 * 4):
+    #         x = read_utils.f32(sia_file)
+    #         y = read_utils.f32(sia_file)
+    #         z = read_utils.f32(sia_file)
+    #         instance.positions.append(data_types.Vector3(x, y, z))
+    # else:
+    #     # which have something to do with spectators in the stadiums
+    #     for _ in range(0, num1):
+    #         # Possibly mesh data
+    #         print("wee")
+    #         read_utils.skip(sia_file, 48)
+    for _ in range(0, num1):
+        for _ in range(0, 4):
             x = read_utils.f32(sia_file)
             y = read_utils.f32(sia_file)
             z = read_utils.f32(sia_file)
-            instance.positions.append(data_types.Vector3(x, y, z))
-    else:
-        for _ in range(0, num1):
-            # Possibly mesh data
-            read_utils.skip(sia_file, 48)
+            instance.positions.append(data_types.Vector3(x, y, z))            
+    
 
     instance.name = read_utils.string(sia_file)
     instance.path = read_utils.string(sia_file)
@@ -180,14 +195,12 @@ def load(path: str):
         for _ in range(objects_num):
             mesh = data_types.Mesh()
 
-            # vertex_offset
             read_utils.skip(sia_file, 4)
-
             mesh.vertices_num = read_utils.u32(sia_file)
 
-            # triangle_offset
             read_utils.skip(sia_file, 4)
-            mesh.indecies_length = read_utils.u32(sia_file)
+            # Number of triangles when divided by 3
+            mesh.triangles_num = int(read_utils.u32(sia_file) / 3)
 
             mesh.id = read_utils.u32(sia_file)
 
@@ -306,10 +319,11 @@ def load(path: str):
                     data_types.Vertex(position, normal, texture_coords)
                 )
 
-        indecies_length = read_utils.u32(sia_file)
+        # This is how many indecies there is,
+        _number_of_triangles = int(read_utils.u32(sia_file) / 3)
         for i in range(meshes_num):
             mesh = model.meshes[i]
-            for _ in range(int(indecies_length / 3)):
+            for _ in range(mesh.triangles_num):
                 if vertices_total_num > 65535:
                     triangle = data_types.Triangle.read_u32(sia_file)
                 else:
@@ -325,14 +339,14 @@ def load(path: str):
                 mesh.triangles.append(triangle)
 
         is_skinned = read_utils.u32(sia_file) == 1
-        bones_length = read_utils.u32(sia_file)
+        number_of_bones = read_utils.u32(sia_file)
 
         # Could be a bit field, not sure, but makes more sense than magic number
         # maybe a bit that says if it is a mesh_type of not.
         print("Is skinned: ", is_skinned)
         if is_skinned:
-            print("Number of bones: ", bones_length)
-            read_bones(sia_file, bones_length)
+            print("Number of bones: ", number_of_bones)
+            read_bones(sia_file, number_of_bones)
 
         num = read_utils.u8(sia_file)
 

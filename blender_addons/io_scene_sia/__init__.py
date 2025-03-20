@@ -76,12 +76,6 @@ class ImportSIA(bpy.types.Operator, ExportHelper):
         options={"HIDDEN"},
     )
 
-    import_instances: BoolProperty(
-        name="Import Instances",
-        description="Imports Instances from file, these are other models being referenced.",
-        default=False,
-    )
-
     def execute(self, context):
         from . import import_sia
 
@@ -89,7 +83,6 @@ class ImportSIA(bpy.types.Operator, ExportHelper):
             context,
             self.filepath,
             context.preferences.addons[__name__].preferences,
-            self.import_instances,
         )
 
 

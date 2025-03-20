@@ -80,17 +80,17 @@ class Model:
         self.name = ""
         self.bounding_box: BoundingBox
         self.vertex_flags: VertexFlags
-        self.meshes = []
-        self.instances = []
+        self.meshes: list[Mesh] = []
+        self.instances: list[Instance] = []
         self.end_kind: None | EndKind
 
 
 class Instance:
     def __init__(self):
-        self.type: int
+        self.kind: int
         self.name = ""
         self.path = ""
-        self.transform: None | Transform
+        self.transform: Transform
         self.positions = []
 
 
@@ -148,7 +148,7 @@ class Mesh:
     def __init__(self):
         self.id = 0
         self.vertices_num = 0
-        self.indecies_length = 0
+        self.triangles_num = 0
         self.materials = []
         self.vertices = []
         self.triangles = []
@@ -316,40 +316,40 @@ class EndKindType(IntEnum):
 
 class EndKind:
     def __init__(self):
-        self.type = None
+        self.kind = None
         self.value = None
 
     @staticmethod
     def MeshType(value):
         result = EndKind()
-        result.type = EndKindType.MeshType
+        result.kind = EndKindType.MeshType
         result.value = value
         return result
 
     @staticmethod
     def IsBanner(value):
         result = EndKind()
-        result.type = EndKindType.IsBanner
+        result.kind = EndKindType.IsBanner
         result.value = value
         return result
 
     @staticmethod
     def IsCompBanner(value):
         result = EndKind()
-        result.type = EndKindType.IsCompBanner
+        result.kind = EndKindType.IsCompBanner
         result.value = value
         return result
 
     @staticmethod
     def IsMatchBall(value):
         result = EndKind()
-        result.type = EndKindType.IsMatchBall
+        result.kind = EndKindType.IsMatchBall
         result.value = value
         return result
 
     @staticmethod
     def IsTeamLogo(value):
         result = EndKind()
-        result.type = EndKindType.IsTeamLogo
+        result.kind = EndKindType.IsTeamLogo
         result.value = value
         return result

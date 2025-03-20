@@ -1,7 +1,7 @@
 from io import BufferedWriter
 from typing import Any
 import bpy
-from mathutils import Matrix
+import mathutils
 from struct import pack
 import bmesh
 import ntpath
@@ -80,28 +80,22 @@ def save(
     global_matrix = axis_conversion(
         to_forward=axis_forward,
         to_up=axis_up,
-    ).to_4x4() @ Matrix.Scale(1.0, 4)
+    ).to_4x4() @ mathutils.Matrix.Scale(1.0, 4)
 
     model = data_types.Model()
     model.bounding_box = data_types.BoundingBox()
     model.name = os.path.splitext(os.path.basename(filepath))[0]
 
     valid_objects = []
+    instances = []
     uses_lightmap = False
 
     for obj in context_objects:
-        if obj.type not in ["MESH", "CURVE"]:
-            continue
-
-        if obj.mode == "EDIT":
-            obj.update_from_editmode()
-
-        depsgraph = bpy.context.evaluated_depsgraph_get()
-        mesh_owner = obj.evaluated_get(depsgraph)
-
-        try:
-            mesh_owner.to_mesh()
-        except RuntimeError:
+        if obj.type == "EMPTY":
+            if "FM_INSTANCE_KIND" in obj and obj["FM_INSTANCE_KIND"] == 0:
+                instances.append(obj)
+                continue
+        if obj.type not in ["MESH", "CURVE"] or obj.parent in instances:
             continue
 
         valid_objects.append(obj)
@@ -281,20 +275,42 @@ def save(
                 uv_sets,
                 data_types.Vector3(*tangent),
             )
+            # TODO: This needs to take the instances into account as well
             model.bounding_box.update_with_vector(vertex.position)
             sia_mesh.vertices.append(vertex)
 
-        # TODO: Move this inline into the loop above
         for pf in ply_faces:
             sia_mesh.triangles.append(data_types.Triangle(*pf))
 
         # TODO: These don't need to be fields, it can compute this when writing it.
         sia_mesh.vertices_num = len(sia_mesh.vertices)
-        sia_mesh.indecies_length = len(sia_mesh.triangles)
+        sia_mesh.triangles_num = len(sia_mesh.triangles)
 
         model.meshes.append(sia_mesh)
 
         mesh_owner.to_mesh_clear()
+
+    for instance_obj in instances:
+        instance = data_types.Instance()
+        instance.kind = 0
+        instance.name = instance_obj["FM_INSTANCE_NAME"]
+        instance.path = instance_obj["FM_INSTANCE_PATH"]
+        instance.transform = data_types.Transform(
+            data_types.Vector3(
+                instance_obj.location.x,
+                instance_obj.location.y,
+                instance_obj.location.z,
+            ),
+            data_types.Vector3(
+                instance_obj.rotation_euler.x,
+                instance_obj.rotation_euler.y,
+                instance_obj.rotation_euler.z,
+            ),
+            data_types.Vector3(
+                instance_obj.scale.x, instance_obj.scale.y, instance_obj.scale.z
+            ),
+        )
+        model.instances.append(instance)
 
     if len(model.meshes) == 0:
         raise Exception("No valid meshes to export")
@@ -420,7 +436,58 @@ def save(
         write_utils.u32(file, 0)
         write_utils.u32(file, 0)
         write_utils.u8(file, 0)
-        write_utils.u32(file, 0)  # instances
+        write_utils.u32(file, len(model.instances))
+        for instance in model.instances:
+            write_utils.u32(file, instance.kind)
+            matrix = mathutils.Matrix.LocRotScale(
+                mathutils.Vector(
+                    (
+                        instance.transform.position.x,
+                        instance.transform.position.y,
+                        instance.transform.position.z,
+                    )
+                ),
+                mathutils.Euler(
+                    (
+                        instance.transform.rotation.x,
+                        instance.transform.rotation.y,
+                        instance.transform.rotation.z,
+                    )
+                ),
+                mathutils.Vector(
+                    (
+                        instance.transform.scale.x,
+                        instance.transform.scale.y,
+                        instance.transform.scale.z,
+                    )
+                ),
+            )
+
+            write_utils.f32(file, matrix[0][3])
+            write_utils.f32(file, matrix[1][3])
+            write_utils.f32(file, matrix[2][3])
+            write_utils.f32(file, matrix[3][3])
+
+            write_utils.f32(file, matrix[0][0])
+            write_utils.f32(file, matrix[1][0])
+            write_utils.f32(file, matrix[2][0])
+
+            write_utils.f32(file, matrix[0][1])
+            write_utils.f32(file, matrix[1][1])
+            write_utils.f32(file, matrix[2][1])
+
+            write_utils.f32(file, matrix[0][2])
+            write_utils.f32(file, matrix[1][2])
+            write_utils.f32(file, matrix[2][2])
+            write_utils.f32(file, matrix[3][2])
+
+            for _ in range(6):
+                write_utils.f32(file, 0)
+
+            write_utils.u32(file, 0)
+
+            write_utils.string(file, instance.name)
+            write_utils.string(file, instance.path)
 
         file.write(b"EHSM")
 
