@@ -17,7 +17,30 @@ from . import write_utils
 from . import utils
 
 
-def texture_relative_path(node, addon_preferences):
+def material_name_to_hash(name: str) -> list[int]:
+    if name == "STATIC_LIGHTMAPPED":
+        return [19, 7, 70, 230]
+    elif name == "SKIN":
+        return [184, 101, 107, 179]
+    elif name == "MATCH_BALL":
+        return [78, 230, 215, 233]
+    elif name == "ALPHA_TESTED_HAIR":
+        return [234, 235, 234, 197]
+    elif name == "NETTING":
+        return [212, 55, 120, 131]
+    elif name == "BALL":
+        return [100, 19, 143, 180]
+    elif name == "HAIR":
+        return [185, 118, 182, 212]
+    elif name == "LIGHT":
+        return [47, 30, 157, 226]
+    elif name == "SKINNED":
+        return [51, 133, 14, 212]
+    else:  # "static"
+        return [59, 194, 144, 210]
+
+
+def texture_relative_path(node, addon_preferences) -> str | None:
     texture_path = node.image.filepath_from_user()
 
     basename = os.path.basename(texture_path)
@@ -88,13 +111,26 @@ def save(
 
     valid_objects = []
     instances = []
+    instances_positions = {}
     uses_lightmap = False
 
     for obj in context_objects:
         if obj.type == "EMPTY":
-            if "FM_INSTANCE_KIND" in obj and obj["FM_INSTANCE_KIND"] == 0:
-                instances.append(obj)
-                continue
+            if "FM_INSTANCE_KIND" in obj:
+                if obj["FM_INSTANCE_KIND"] == 0:
+                    instances.append(obj)
+                else:
+                    instances.append(obj)
+                    instances_positions[obj] = []
+                    for i, child in enumerate(obj.children):
+                        instances_positions[obj].append([])
+                        depsgraph = bpy.context.evaluated_depsgraph_get()
+                        mesh_owner = child.evaluated_get(depsgraph)
+                        mesh = mesh_owner.to_mesh()
+                        mat = global_matrix @ child.matrix_world
+                        mesh.transform(mat)
+                        for vert in mesh.vertices:
+                            instances_positions[obj][i].append(vert.co)
         if obj.type not in ["MESH", "CURVE"] or obj.parent in instances:
             continue
 
@@ -118,8 +154,8 @@ def save(
         if mat.is_negative:
             mesh.flip_normals()
 
-        # Since this is slow, it only needs to do this if export tangent is checked.
-        mesh.calc_tangents()
+        # I don't export tangents for now
+        # mesh.calc_tangents()
 
         sia_mesh.id = mesh_index
 
@@ -133,7 +169,7 @@ def save(
         for i, f in enumerate(mesh.polygons):
             if f.material_index not in used_material_indecies:
                 used_material_indecies.append(f.material_index)
-            # by checking material_index on f, I'll be able to
+            # TODO: by checking material_index on f, I'll be able to
             # split materials into their own meshes.
             uv = []
             for uv_layer in mesh.uv_layers:
@@ -179,12 +215,7 @@ def save(
         for material in materials:
             sia_material = data_types.Material()
             sia_material.name = material.name
-            sia_material.kind = "base"
-
-            if "[" in material.name and "]" in material.name:
-                name_split = material.name.split("[")[1].split("]")
-                sia_material.name = name_split[0]
-                sia_material.kind = name_split[1]
+            sia_material.kind = material.FM_SHADER
 
             node_tree = material.node_tree
             texture_map = {}
@@ -269,15 +300,15 @@ def save(
             uv_sets = []
             for uv_set in uv_coords:
                 uv_sets.append(data_types.Vector2(*uv_set))
-            vertex = data_types.Vertex(
+            vert = data_types.Vertex(
                 data_types.Vector3(*vert.co[:]),
                 data_types.Vector3(*normal),
                 uv_sets,
                 data_types.Vector3(*tangent),
             )
             # TODO: This needs to take the instances into account as well
-            model.bounding_box.update_with_vector(vertex.position)
-            sia_mesh.vertices.append(vertex)
+            model.bounding_box.update_with_vector(vert.position)
+            sia_mesh.vertices.append(vert)
 
         for pf in ply_faces:
             sia_mesh.triangles.append(data_types.Triangle(*pf))
@@ -292,7 +323,7 @@ def save(
 
     for instance_obj in instances:
         instance = data_types.Instance()
-        instance.kind = 0
+        instance.kind = instance_obj["FM_INSTANCE_KIND"]
         instance.name = instance_obj["FM_INSTANCE_NAME"]
         instance.path = instance_obj["FM_INSTANCE_PATH"]
         instance.transform = data_types.Transform(
@@ -310,6 +341,9 @@ def save(
                 instance_obj.scale.x, instance_obj.scale.y, instance_obj.scale.z
             ),
         )
+        if instance.kind != 0:
+            for pos in instances_positions[instance_obj]:
+                instance.positions.append(pos)
         model.instances.append(instance)
 
     if len(model.meshes) == 0:
@@ -336,9 +370,6 @@ def save(
 
         write_utils.u32(file, len(model.meshes))
 
-        # Seems like some sort of offset, but where does the magic numbers come from?
-        # and do they change per mesh, need to check that out.
-        # is it like vertices bytes written?
         vertex_offset = 0
         triangle_offset = 0
         for mesh in model.meshes:
@@ -360,26 +391,21 @@ def save(
             # What is this?
             # almost seems to be a hash or something,
             # it looks like when the material name is the same, so is this byte sequence.
-            # write_utils.u32(file, mesh.id)
             # might be the material type, since they need to be specific values for lighting to work.
+            # or could it be material settings
+            # I don't even think the "material kind" matters, only the hash
 
-            if uses_lightmap:
-                for byte in [20, 153, 150, 225]:
-                    write_utils.u8(
-                        file, byte
-                    )  # I did mess around with it a little bit as a bitfield, it didn't give any results
-            else:
-                for byte in [59, 194, 144, 210]:
-                    write_utils.u8(file, byte)
+            for byte in material_name_to_hash(mesh.materials[0].kind):
+                write_utils.u8(file, byte)
 
             write_utils.zeros(file, 4)
             write_utils.full_bytes(file, 4)
             write_utils.zeros(file, 4)
 
-            write_utils.string(file, mesh.materials[0].name)
+            write_utils.string(file, mesh.materials[0].kind)
             write_utils.u8(file, len(mesh.materials))
             for material in mesh.materials:
-                write_utils.string(file, material.kind)
+                write_utils.string(file, material.name)
                 write_utils.u8(file, len(material.textures))
                 for texture in material.textures:
                     texture.write(file)
@@ -402,22 +428,18 @@ def save(
         write_utils.u32(file, model.vertex_flags.number())
 
         for mesh in model.meshes:
-            for vertex in mesh.vertices:
+            for vert in mesh.vertices:
                 if model.vertex_flags.position:
-                    write_utils.vector3(file, vertex.position)
+                    write_utils.vector3(file, vert.position)
                 if model.vertex_flags.normal:
-                    write_utils.vector3(file, vertex.normal)
+                    write_utils.vector3(file, vert.normal)
                 if model.vertex_flags.uv_set1:
-                    write_utils.vector2(file, vertex.texture_coords[0])
+                    write_utils.vector2(file, vert.texture_coords[0])
                 if model.vertex_flags.uv_set2:
-                    if len(vertex.texture_coords) == 1:
-                        write_utils.vector2(file, vertex.texture_coords[0])
+                    if len(vert.texture_coords) == 1:
+                        write_utils.vector2(file, vert.texture_coords[0])
                     else:
-                        write_utils.vector2(file, vertex.texture_coords[1])
-                if model.vertex_flags.tangent:
-                    # Thought this could be tangents, but why is there one more value at the end then.
-                    write_utils.vector3(file, vertex.tangent)
-                    write_utils.f32(file, 1)
+                        write_utils.vector2(file, vert.texture_coords[1])
                 if model.vertex_flags.unknown4:
                     # When I've seen this it has been all F's
                     # as mentioned in the parse_sia file, might be vertex color.
@@ -484,7 +506,12 @@ def save(
             for _ in range(6):
                 write_utils.f32(file, 0)
 
-            write_utils.u32(file, 0)
+            write_utils.u32(file, len(instance.positions))
+            for i in instance.positions:
+                for pos in i:
+                    write_utils.f32(file, pos[0])
+                    write_utils.f32(file, pos[1])
+                    write_utils.f32(file, pos[2])
 
             write_utils.string(file, instance.name)
             write_utils.string(file, instance.path)

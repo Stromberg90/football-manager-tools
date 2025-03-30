@@ -4,7 +4,7 @@ import bmesh
 import bpy
 from bpy_extras import node_shader_utils
 from bpy_extras.image_utils import load_image
-from . import data_types, parse_sia, utils
+from . import data_types, material_kind_to_enum, parse_sia, utils
 
 
 def load(
@@ -67,6 +67,7 @@ def add_material_group():
     return fm_material
 
 
+# TODO: Maybe this could be renamed to something more fitting, cause only one of these are actual instances.
 def load_instance(
     context, addon_preferences, fm_material, materials, instance: data_types.Instance
 ):
@@ -96,16 +97,16 @@ def load_instance(
 
     root = bpy.data.objects.new(instance.name, None)
     collection.objects.link(root)
+    root.location.x = instance.transform.position.x
+    root.location.y = instance.transform.position.y
+    root.location.z = instance.transform.position.z
+    root.rotation_euler.x = instance.transform.rotation.x
+    root.rotation_euler.y = instance.transform.rotation.y
+    root.rotation_euler.z = instance.transform.rotation.z
+    root.scale.x = instance.transform.scale.x
+    root.scale.y = instance.transform.scale.y
+    root.scale.z = instance.transform.scale.z
     if instance.kind == 0:
-        root.location.x = instance.transform.position.x
-        root.location.y = instance.transform.position.y
-        root.location.z = instance.transform.position.z
-        root.rotation_euler.x = instance.transform.rotation.x
-        root.rotation_euler.y = instance.transform.rotation.y
-        root.rotation_euler.z = instance.transform.rotation.z
-        root.scale.x = instance.transform.scale.x
-        root.scale.y = instance.transform.scale.y
-        root.scale.z = instance.transform.scale.z
         if os.path.exists(instance_path):
             sia_file = parse_sia.load(instance_path)
             sia_file.name = sia_file.name.decode("utf-8", "replace")
@@ -121,15 +122,27 @@ def load_instance(
         else:
             print("Couldn't not load ", instance_path)
     else:
+        root.name = "INSTANCE KIND {}".format(instance.kind)
+        me = bpy.data.meshes.new("shape")
+        bm = bmesh.new()
         for position in instance.positions:
-            inner = bpy.data.objects.new(instance.name, None)
-            collection.objects.link(inner)
-            inner.parent = root
-            inner.empty_display_size = 2
-            inner.empty_display_type = "PLAIN_AXES"
-            inner.location.x = position.x
-            inner.location.y = position.y
-            inner.location.z = position.z
+            bm.verts.new(
+                (
+                    position.x - root.location.x,
+                    position.y - root.location.y,
+                    position.z - root.location.z,
+                )
+            )
+            if len(bm.verts) == 4:
+                bm.verts.ensure_lookup_table()
+                bm.faces.new((bm.verts[0], bm.verts[1], bm.verts[2], bm.verts[3]))
+                bm.faces.ensure_lookup_table()
+                me = bpy.data.meshes.new("shape")
+                bm.to_mesh(me)
+                obj = bpy.data.objects.new(me.name, me)
+                obj.parent = root
+                collection.objects.link(obj)
+                bm = bmesh.new()
 
     root["FM_INSTANCE_KIND"] = instance.kind
     root["FM_INSTANCE_NAME"] = instance.name
@@ -139,110 +152,7 @@ def load_instance(
 def import_mesh(addon_preferences, fm_material, sia_file, materials, mesh):
     me = bpy.data.meshes.new("{}_mesh_{}".format(sia_file.name.lower(), mesh.id))
     for material in mesh.materials:
-        material.name = material.name.decode("utf-8", "replace")
-        if material not in materials:
-            materials[material] = bpy.data.materials.new(
-                "[{}]{}".format(material.kind.decode("utf-8", "replace"), material.name)
-            )
-        else:
-            me.materials.append(materials[material])
-            continue
-
-        mat = materials[material]
-
-        mat.use_nodes = True
-        nodes = mat.node_tree.nodes
-        for node in nodes:
-            if node.bl_idname == "ShaderNodeBsdfPrincipled":
-                nodes.remove(node)
-            elif node.bl_idname == "ShaderNodeOutputMaterial":
-                output_node = node
-
-        node_group = nodes.new("ShaderNodeGroup")
-        node_group.node_tree = fm_material
-
-        mat.node_tree.links.new(
-            output_node.inputs["Surface"], node_group.outputs["BSDF"]
-        )
-        for texture in material.textures:
-            texture_path = utils.absolute_asset_path(
-                addon_preferences.base_extracted_textures_path,
-                texture.path.decode("utf-8", "replace"),
-            )
-            alternative_texture_path = utils.absolute_asset_path(
-                addon_preferences.base_textures_path,
-                texture.path.decode("utf-8", "replace"),
-            )
-            texture_base = os.path.splitext(texture_path)[0]
-            alternative_texture_base = os.path.splitext(alternative_texture_path)[0]
-
-            ext = ".dds"
-            if os.path.exists(texture_base + ext):
-                texture_path = texture_base + ext
-            elif os.path.exists(alternative_texture_base + ext):
-                texture_path = alternative_texture_base + ext
-
-            if not os.path.exists(texture_path):
-                continue
-
-            if texture.kind == data_types.TextureKind.Albedo:
-                albedo = nodes.new("ShaderNodeTexImage")
-                mat.node_tree.links.new(
-                    node_group.inputs["Albedo"], albedo.outputs["Color"]
-                )
-                texture = bpy.data.images.load(texture_path, check_existing=True)
-                albedo.image = texture
-            elif (
-                texture.kind == data_types.TextureKind.RoughnessMetallicAmbientOcclusion
-            ):
-                ro_me_ao = nodes.new("ShaderNodeTexImage")
-                mat.node_tree.links.new(
-                    node_group.inputs["Roughness Metallic AO"],
-                    ro_me_ao.outputs["Color"],
-                )
-                texture = bpy.data.images.load(texture_path, check_existing=True)
-                texture.colorspace_settings.name = "Linear Rec.709"
-                ro_me_ao.image = texture
-            elif texture.kind == data_types.TextureKind.Normal:
-                normal = nodes.new("ShaderNodeTexImage")
-                mat.node_tree.links.new(
-                    node_group.inputs["Normal"],
-                    normal.outputs["Color"],
-                )
-                mat.node_tree.links.new(
-                    node_group.inputs["Normal Alpha"],
-                    normal.outputs["Alpha"],
-                )
-                texture = bpy.data.images.load(texture_path, check_existing=True)
-                texture.colorspace_settings.name = "Non-Color"
-                normal.image = texture
-            elif texture.kind == data_types.TextureKind.Mask:
-                mask = nodes.new("ShaderNodeTexImage")
-                mat.node_tree.links.new(
-                    node_group.inputs["Mask"],
-                    mask.outputs["Color"],
-                )
-                texture = bpy.data.images.load(texture_path, check_existing=True)
-                texture.colorspace_settings.name = "Linear Rec.709"
-                mask.image = texture
-            elif texture.kind == data_types.TextureKind.Lightmap:
-                lightmap = nodes.new("ShaderNodeTexImage")
-                mat.node_tree.links.new(
-                    node_group.inputs["Lightmap"],
-                    lightmap.outputs["Color"],
-                )
-                texture = bpy.data.images.load(texture_path, check_existing=True)
-                texture.colorspace_settings.name = "Linear Rec.709"
-                lightmap.image = texture
-
-                uv_map = nodes.new("ShaderNodeUVMap")
-                uv_map.uv_map = "UVMap.001"  # TODO: I should move the material creation after the making the uv sets, incase the name changes in the future
-                mat.node_tree.links.new(
-                    lightmap.inputs["Vector"],
-                    uv_map.outputs["UV"],
-                )
-
-        me.materials.append(materials[material])
+        setup_material(addon_preferences, fm_material, materials, me, material)
 
     bm = bmesh.new()
     for v in mesh.vertices:
@@ -274,3 +184,110 @@ def import_mesh(addon_preferences, fm_material, sia_file, materials, mesh):
     me.validate(clean_customdata=False)
     me.update(calc_edges=False, calc_edges_loose=False)
     return me
+
+
+def setup_material(addon_preferences, fm_material, materials, me, material):
+    material.name = material.name.decode("utf-8", "replace")
+    if material not in materials:
+        materials[material] = bpy.data.materials.new(material.name)
+        materials[material].FM_SHADER = material_kind_to_enum(material.kind)
+    else:
+        me.materials.append(materials[material])
+        return
+
+    mat = materials[material]
+
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    for node in nodes:
+        if node.bl_idname == "ShaderNodeBsdfPrincipled":
+            nodes.remove(node)
+        elif node.bl_idname == "ShaderNodeOutputMaterial":
+            output_node = node
+
+    node_group = nodes.new("ShaderNodeGroup")
+    node_group.node_tree = fm_material
+
+    mat.node_tree.links.new(output_node.inputs["Surface"], node_group.outputs["BSDF"])
+    for texture in material.textures:
+        texture_path = utils.absolute_asset_path(
+            addon_preferences.base_extracted_textures_path,
+            texture.path.decode("utf-8", "replace"),
+        )
+        alternative_texture_path = utils.absolute_asset_path(
+            addon_preferences.base_textures_path,
+            texture.path.decode("utf-8", "replace"),
+        )
+        texture_base = os.path.splitext(texture_path)[0]
+        alternative_texture_base = os.path.splitext(alternative_texture_path)[0]
+
+        ext = ".dds"
+        if os.path.exists(texture_base + ext):
+            texture_path = texture_base + ext
+        elif os.path.exists(alternative_texture_base + ext):
+            texture_path = alternative_texture_base + ext
+
+        if not os.path.exists(texture_path):
+            continue
+
+        if texture.kind == data_types.TextureKind.Albedo:
+            albedo = nodes.new("ShaderNodeTexImage")
+            mat.node_tree.links.new(
+                node_group.inputs["Albedo"], albedo.outputs["Color"]
+            )
+            texture = bpy.data.images.load(texture_path, check_existing=True)
+            albedo.image = texture
+        elif texture.kind == data_types.TextureKind.RoughnessMetallicAmbientOcclusion:
+            ro_me_ao = nodes.new("ShaderNodeTexImage")
+            mat.node_tree.links.new(
+                node_group.inputs["Roughness Metallic AO"],
+                ro_me_ao.outputs["Color"],
+            )
+            texture = bpy.data.images.load(texture_path, check_existing=True)
+            texture.colorspace_settings.name = "Linear Rec.709"
+            ro_me_ao.image = texture
+        elif texture.kind == data_types.TextureKind.Normal:
+            normal = nodes.new("ShaderNodeTexImage")
+            mat.node_tree.links.new(
+                node_group.inputs["Normal"],
+                normal.outputs["Color"],
+            )
+            mat.node_tree.links.new(
+                node_group.inputs["Normal Alpha"],
+                normal.outputs["Alpha"],
+            )
+            texture = bpy.data.images.load(texture_path, check_existing=True)
+            texture.colorspace_settings.name = "Non-Color"
+            normal.image = texture
+        elif texture.kind == data_types.TextureKind.Mask:
+            mask = nodes.new("ShaderNodeTexImage")
+            mat.node_tree.links.new(
+                node_group.inputs["Mask"],
+                mask.outputs["Color"],
+            )
+            texture = bpy.data.images.load(texture_path, check_existing=True)
+            texture.colorspace_settings.name = "Linear Rec.709"
+            mask.image = texture
+        elif texture.kind == data_types.TextureKind.Lightmap:
+            if materials[material].FM_SHADER == "STATIC":
+                materials[material].FM_SHADER = material_kind_to_enum(
+                    "static_lightmapped"
+                )
+
+            lightmap = nodes.new("ShaderNodeTexImage")
+            mat.node_tree.links.new(
+                node_group.inputs["Lightmap"],
+                lightmap.outputs["Color"],
+            )
+            texture = bpy.data.images.load(texture_path, check_existing=True)
+            texture.colorspace_settings.name = "Linear Rec.709"
+            lightmap.image = texture
+
+            uv_map = nodes.new("ShaderNodeUVMap")
+            uv_map.uv_map = "UVMap.001"  # TODO: I should move the material creation after the making the uv sets, incase the name changes in the future
+            mat.node_tree.links.new(
+                lightmap.inputs["Vector"],
+                uv_map.outputs["UV"],
+            )
+
+    me.materials.append(materials[material])

@@ -21,7 +21,7 @@ from bpy_extras.io_utils import (
 bl_info = {
     "name": "SIA Format",
     "author": "Andreas Strømberg",
-    "version": (1, 3, 0),
+    "version": (1, 4, 0),
     "blender": (4, 0, 0),
     "location": "File > Import-Export",
     "description": "Import-Export SIA",
@@ -148,7 +148,73 @@ class SIA_PT_export_include(bpy.types.Panel):
         layout.prop(operator, "use_selection")
 
 
-classes = (ExportSIA, SIA_PT_export_include, ImportSIA, IoSiaPreferences)
+class SIA_PT_MaterialPanel(bpy.types.Panel):
+    bl_label = "FM Properties"
+    bl_idname = "SIA_PT_MaterialPanel_layout"
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "material"
+
+    @classmethod
+    def poll(cls, context):
+        material = context.material
+        if material is None:
+            return False
+        if material.node_tree is None:
+            return False
+        nodes = material.node_tree.nodes
+        for node in nodes:
+            if node.bl_idname == "ShaderNodeBsdfPrincipled":
+                nodes.remove(node)
+            elif node.bl_idname == "ShaderNodeOutputMaterial":
+                output_node = node
+        surface_node = output_node.inputs["Surface"]
+        if len(surface_node.links) == 0:
+            return False
+        if "FM Material" in surface_node.links[0].from_node.node_tree.name:
+            return True
+        return False
+
+    def draw(self, context):
+        layout = self.layout
+
+        material = context.material
+
+        layout.prop(material, "FM_SHADER", text="Shader")
+
+
+class SIA_PT_ObjectPanel(bpy.types.Panel):
+    bl_label = "FM Instance"
+    bl_idname = "SIA_PT_ObjectPanel_layout"
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        object = context.object
+        if object.get("FM_INSTANCE_KIND") is not None:
+            return True
+        else:
+            return False
+
+    def draw(self, context):
+        layout = self.layout
+
+        object = context.object
+
+        layout.prop(object, "FM_INSTANCE_KIND", text="Kind")
+        layout.prop(object, "FM_INSTANCE_NAME", text="Name")
+        layout.prop(object, "FM_INSTANCE_PATH", text="Path")
+
+classes = (
+    ExportSIA,
+    SIA_PT_export_include,
+    ImportSIA,
+    IoSiaPreferences,
+    SIA_PT_MaterialPanel,
+    SIA_PT_ObjectPanel,
+)
 
 
 def menu_func_export(self, context):
@@ -159,7 +225,50 @@ def menu_func_import(self, context):
     self.layout.operator(ImportSIA.bl_idname, text="Football Manager 2024 Mesh (.sia)")
 
 
+def material_kind_to_enum(kind: str) -> str:
+    if kind == "static":
+        return "STATIC"
+    elif kind == "static_lightmapped":
+        return "STATIC_LIGHTMAPPED"
+    elif kind == "skin":
+        return "SKIN"
+    elif kind == "match_ball":
+        return "MATCH_BALL"
+    elif kind == "alpha_tested_hair":
+        return "ALPHA_TESTED_HAIR"
+    elif kind == "netting":
+        return "NETTING"
+    elif kind == "ball":
+        return "BALL"
+    elif kind == "hair":
+        return "HAIR"
+    elif kind == "light":
+        return "LIGHT"
+    elif kind == "skinned":
+        return "SKINNED"
+    else:
+        return "STATIC"
+
+
 def register():
+    bpy.types.Object.FM_INSTANCE_KIND = bpy.props.IntProperty()
+    bpy.types.Object.FM_INSTANCE_NAME = bpy.props.StringProperty()
+    bpy.types.Object.FM_INSTANCE_PATH = bpy.props.StringProperty()
+    bpy.types.Material.FM_SHADER = bpy.props.EnumProperty(
+        items=[
+            ("STATIC", "static", ""),
+            ("STATIC_LIGHTMAPPED", "static_lightmapped", ""),
+            ("SKIN", "skin", ""),
+            ("MATCH_BALL", "match_ball", ""),
+            ("ALPHA_TESTED_HAIR", "alpha_tested_hair", ""),
+            ("NETTING", "netting", ""),
+            ("BALL", "ball", ""),
+            ("HAIR", "hair", ""),
+            ("LIGHT", "light", ""),
+            ("SKINNED", "skinned", ""),
+        ]
+    )
+
     for cls in classes:
         bpy.utils.register_class(cls)
 
@@ -168,6 +277,11 @@ def register():
 
 
 def unregister():
+    del bpy.types.Material.FM_INSTANCE_KIND
+    del bpy.types.Material.FM_INSTANCE_NAME
+    del bpy.types.Material.FM_INSTANCE_PATH
+    del bpy.types.Material.FM_SHADER
+
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
 

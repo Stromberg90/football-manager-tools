@@ -34,11 +34,11 @@ def read_bones(sia_file: BufferedReader, number_of_bones: int):
     read_utils.u8_array(sia_file, 4)
 
     # print("bones")
-    print("Bones at: {}".format(sia_file.tell()))
+    # print("Bones at: {}".format(sia_file.tell()))
     for _ in range(number_of_bones):
-        print("bone")
+        # print("bone")
         # print(read_utils.u8_array(sia_file, 56))
-        print("Hash: ", read_utils.u8_array(sia_file, 8), "?")
+        # print("Hash: ", read_utils.u8_array(sia_file, 8), "?")
         for _ in range(12):
             read_utils.u8_array(sia_file, 4)
             # print("{:.4f}".format(read_utils.f32(sia_file)))
@@ -104,7 +104,6 @@ def read_end_kind(sia_file: BufferedReader, num: int):
 def read_instance(sia_file) -> data_types.Instance:
     instance = data_types.Instance()
 
-    # not sure what this means.
     instance.kind = read_utils.u32(sia_file)
 
     matrix = mathutils.Matrix.Identity(4)
@@ -136,33 +135,12 @@ def read_instance(sia_file) -> data_types.Instance:
     read_utils.skip(sia_file, (4 * 6))
 
     num1 = read_utils.u32(sia_file)
-    # print("num1 ", num1)
-    # print("it is instance kind ", instance.kind)
-    # if instance.kind == 9:
-    #     # Has something to do with spectators in the stadiums        
-    #     print(
-    #         "Pos X: {} Y: {} Z: {}".format(position.x, position.y, position.z),
-    #         rotation,
-    #         scale,
-    #     )
-    #     for _ in range(0, num1 * 4):
-    #         x = read_utils.f32(sia_file)
-    #         y = read_utils.f32(sia_file)
-    #         z = read_utils.f32(sia_file)
-    #         instance.positions.append(data_types.Vector3(x, y, z))
-    # else:
-    #     # which have something to do with spectators in the stadiums
-    #     for _ in range(0, num1):
-    #         # Possibly mesh data
-    #         print("wee")
-    #         read_utils.skip(sia_file, 48)
     for _ in range(0, num1):
         for _ in range(0, 4):
             x = read_utils.f32(sia_file)
             y = read_utils.f32(sia_file)
             z = read_utils.f32(sia_file)
-            instance.positions.append(data_types.Vector3(x, y, z))            
-    
+            instance.positions.append(data_types.Vector3(x, y, z))
 
     instance.name = read_utils.string(sia_file)
     instance.path = read_utils.string(sia_file)
@@ -211,7 +189,7 @@ def load(path: str):
 
         meshes_num = read_utils.u32(sia_file)
 
-        for i in range(meshes_num):
+        for mesh_index in range(meshes_num):
             # Find out what this is.
             # did read them as floats, made no sense.
             # almost seems to be a hash or something,
@@ -226,16 +204,18 @@ def load(path: str):
             # Only observed as zeros
             read_utils.skip(sia_file, 4)
 
-            mesh = model.meshes[i]
+            mesh = model.meshes[mesh_index]
             assert mesh is not None
-            material_type = read_utils.string(sia_file)
+            material_kind = read_utils.string(sia_file)
             materials_num = read_utils.u8(sia_file)
 
             # materials_num is more like material variations it seems.
-            # max I've seen is 2, named static and degraded.
+            # max I've seen is 2, type static and degraded.
+            # I think degraded is more like a flag, which if it has one it will replace "new" in the texture name
+            # with "old" and use that texture
             for _ in range(materials_num):
                 material = data_types.Material(
-                    material_type, read_utils.string(sia_file)
+                    read_utils.string(sia_file), material_kind
                 )
                 texture_num = read_utils.u8(sia_file)
                 for _ in range(texture_num):
@@ -247,6 +227,7 @@ def load(path: str):
 
                 mesh.materials.append(material)
 
+            # I've changed these every which way, and not seen a visual difference
             read_utils.skip(sia_file, 64)
 
         vertices_total_num = read_utils.u32(sia_file)
@@ -258,9 +239,7 @@ def load(path: str):
             read_utils.u32(sia_file)
         )
 
-        for i in range(meshes_num):
-            mesh = model.meshes[i]
-
+        for mesh in model.meshes:
             for _ in range(mesh.vertices_num):
                 texture_coords = []
                 position, normal = (None, None)
@@ -283,25 +262,30 @@ def load(path: str):
                     # print("model.settings[4]: ", read_utils.u8_array(sia_file, 8))
                     read_utils.skip(sia_file, 8)
                 if model.vertex_flags.tangent:
-                    _tangent = data_types.read_vector3(sia_file)
+                    # This is what the shader documentation says
+                    # // tangent + uv winding for binormal direction
+                    #
+                    data_types.read_vector3(sia_file)
                     read_utils.skip(sia_file, 4)
                 if model.vertex_flags.skin:
                     # I think this is data about what bone it is skinned to and such
                     # I wonder if there are a max of 4 bone influences, so there are 4 u8s telling what bone they're skinned to.
                     for bone_n in range(4):
-                        print(
-                            "vertex bone influence ",
-                            bone_n,
-                            " is bone: ",
-                            read_utils.u8(sia_file),
-                        )
+                        # print(
+                        #     "vertex bone influence ",
+                        #     bone_n,
+                        #     " is bone: ",
+                        read_utils.u8(sia_file)
+                        # ,
+                        # )
                     for bone_n in range(4):
-                        print(
-                            "vertex bone influence ",
-                            bone_n,
-                            " amount is ",
-                            read_utils.f32(sia_file),
-                        )
+                        # print(
+                        #     "vertex bone influence ",
+                        #     bone_n,
+                        #     " amount is ",
+                        read_utils.f32(sia_file)
+                        # ,
+                        # )
                 if model.vertex_flags.unknown3:
                     # Printed these as floats, they where very small values(pretty much 0), so unsure what this could be.
                     # print("model.settings[8]: ", read_utils.u8_array(sia_file, 20))
@@ -321,8 +305,7 @@ def load(path: str):
 
         # This is how many indecies there is,
         _number_of_triangles = int(read_utils.u32(sia_file) / 3)
-        for i in range(meshes_num):
-            mesh = model.meshes[i]
+        for mesh in model.meshes:
             for _ in range(mesh.triangles_num):
                 if vertices_total_num > 65535:
                     triangle = data_types.Triangle.read_u32(sia_file)
@@ -343,14 +326,13 @@ def load(path: str):
 
         # Could be a bit field, not sure, but makes more sense than magic number
         # maybe a bit that says if it is a mesh_type of not.
-        print("Is skinned: ", is_skinned)
+        # print("Is skinned: ", is_skinned)
         if is_skinned:
-            print("Number of bones: ", number_of_bones)
+            # print("Number of bones: ", number_of_bones)
             read_bones(sia_file, number_of_bones)
 
         num = read_utils.u8(sia_file)
 
-        print("num: ", num)
         if num == 2:
             read_utils.skip(sia_file, 16)
         elif num == 42:
@@ -361,7 +343,7 @@ def load(path: str):
             )
 
         number_of_instances = read_utils.u32(sia_file)
-        for i in range(0, number_of_instances):
+        for mesh_index in range(0, number_of_instances):
             instance = read_instance(sia_file)
             model.instances.append(instance)
 

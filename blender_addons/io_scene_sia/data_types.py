@@ -149,9 +149,9 @@ class Mesh:
         self.id = 0
         self.vertices_num = 0
         self.triangles_num = 0
-        self.materials = []
-        self.vertices = []
-        self.triangles = []
+        self.materials: list[Material] = []
+        self.vertices: list[Vertex] = []
+        self.triangles: list[Triangle] = []
 
 
 class Vector2:
@@ -268,7 +268,7 @@ class Material:
     def __init__(self, name="", kind=""):
         self.name = name
         self.kind = kind
-        self.textures = []
+        self.textures: list[Texture] = []
 
     def __hash__(self):
         hashstr = str(self.name) + str(self.kind)
