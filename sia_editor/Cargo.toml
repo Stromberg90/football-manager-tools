@@ -1,0 +1,20 @@
+[package]
+name = "sia_editor"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "sia_parser"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sia_editor"
+path = "src/main.rs"
+
+[dependencies]
+bitfield-struct = "0.10"
+byteorder = "1.5"
+eframe = "0.31"
+jwalk = "0.8"
+rfd = "0.15"
+glam = "0.30"

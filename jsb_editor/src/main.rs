@@ -1,8 +1,4 @@
-use std::{
-    fs,
-    path::Path,
-    string::{self, String},
-};
+use std::{fs, path::Path, string::String};
 
 use byteorder::{ByteOrder, LittleEndian};
 
@@ -13,15 +9,16 @@ enum Value {
 }
 
 enum ValueType {
-    RenderFlags,
-    VariableLength,
-    BodyPart,
-    RearCap,
-    Glasses,
-    OfficeSmall,
-    OfficeMedium,
-    LargeBoardroom,
-    Unknown,
+    RenderFlags = 2,
+    VariableLength = 8,
+    Index = 74,
+    BodyPart = 88,
+    RearCap = 152,
+    Glasses = 136,
+    OfficeSmall = 216,
+    OfficeMedium = 232,
+    LargeBoardroom = 248,
+    Unknown = 0,
 }
 
 impl From<u8> for ValueType {
@@ -30,6 +27,7 @@ impl From<u8> for ValueType {
             0 => Self::Unknown,
             2 => Self::RenderFlags,
             8 => Self::VariableLength,
+            74 => Self::Index,
             88 => Self::BodyPart,
             152 => Self::RearCap,
             136 => Self::Glasses,
@@ -55,11 +53,11 @@ impl Parser {
     }
 
     fn parse(&mut self) {
-        self.index = 2;
+        self.index = 0;
         while self.index < self.buffer.len() {
             dbg!(self.read_key());
             if let Value::Unknown(v) = dbg!(self.read_value()) {
-                panic!("Unknown value {}", v);
+                panic!("Unknown value {v}");
             }
         }
     }
@@ -80,8 +78,7 @@ impl Parser {
         match kind {
             ValueType::VariableLength => {
                 let length =
-                    LittleEndian::read_u32(&self.buffer[self.index..self.index + 4].to_vec())
-                        as usize;
+                    LittleEndian::read_u32(&self.buffer[self.index..self.index + 4]) as usize;
                 self.index += 4;
                 let string = String::from_utf8_lossy(&self.buffer[self.index..self.index + length])
                     .to_string();
@@ -114,9 +111,9 @@ impl Parser {
     }
 }
 
-fn main() {
+fn main() {    
     Parser::from_file(
-        r#"D:\football_manager_extracted\simatchviewer\art\environments\interview_area\models\interview_area.jsb"#,
+        r#"D:\FM24Data\sigraphics-pc\shaders\dx11\room_assets.jsb"#,
     )
     .parse();
 }
