@@ -36,14 +36,8 @@ def read_bones(sia_file: BufferedReader, number_of_bones: int):
     # print("bones")
     # print("Bones at: {}".format(sia_file.tell()))
     for _ in range(number_of_bones):
-        # print("bone")
-        # print(read_utils.u8_array(sia_file, 56))
-        # print("Hash: ", read_utils.u8_array(sia_file, 8), "?")
-        for _ in range(12):
-            read_utils.u8_array(sia_file, 4)
-            # print("{:.4f}".format(read_utils.f32(sia_file)))
-            # print(read_utils.u8_array(sia_file, 4))
-            # print(read_utils.f32(sia_file))
+        # These are floats with weights and such
+        read_utils.skip(sia_file, 56)
 
 
 def read_end_kind(sia_file: BufferedReader, num: int):
@@ -286,9 +280,13 @@ def load(path: str):
                         read_utils.f32(sia_file)
                         # ,
                         # )
+                if model.vertex_flags.unknown2:
+                    # Seems to be lacking any info?
+                    pass
                 if model.vertex_flags.unknown3:
                     # Printed these as floats, they where very small values(pretty much 0), so unsure what this could be.
                     # print("model.settings[8]: ", read_utils.u8_array(sia_file, 20))
+                    # Only used on manager files
                     read_utils.skip(sia_file, 20)
                 if model.vertex_flags.unknown4:
                     # Don't know when this is set, but it only happens in some files.
@@ -343,7 +341,7 @@ def load(path: str):
             )
 
         number_of_instances = read_utils.u32(sia_file)
-        for mesh_index in range(0, number_of_instances):
+        for _ in range(0, number_of_instances):
             instance = read_instance(sia_file)
             model.instances.append(instance)
 

@@ -277,9 +277,9 @@ def register():
 
 
 def unregister():
-    del bpy.types.Material.FM_INSTANCE_KIND
-    del bpy.types.Material.FM_INSTANCE_NAME
-    del bpy.types.Material.FM_INSTANCE_PATH
+    del bpy.types.Object.FM_INSTANCE_KIND
+    del bpy.types.Object.FM_INSTANCE_NAME
+    del bpy.types.Object.FM_INSTANCE_PATH
     del bpy.types.Material.FM_SHADER
 
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
