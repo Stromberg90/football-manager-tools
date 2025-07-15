@@ -21,7 +21,7 @@ from bpy_extras.io_utils import (
 bl_info = {
     "name": "SIA Format",
     "author": "Andreas Strømberg",
-    "version": (1, 4, 0),
+    "version": (1, 4, 1),
     "blender": (4, 0, 0),
     "location": "File > Import-Export",
     "description": "Import-Export SIA",
