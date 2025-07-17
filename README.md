@@ -46,10 +46,7 @@ Import the FM Material node group and use that to assign your textures too, expo
 <img src="images/node_group.png" />
 
 # Limitations
-## Import
-- Meshes that have instances have very basic support.
 ## Export
-- Instances is not supported.
 - Multiple materials on the same mesh, so for now separate them before exporting.
 
 # Contributing
