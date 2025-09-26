@@ -16,7 +16,7 @@ Imported | Exported
 7. Enabled addon and there should now be a **Football Manager 2024 Mesh (.sia)** entry under the import and export menu.
 
 # Custom Textures
-_For lightmaps it seens like it also reads the filepath from the associated .jsb file, so it has to match what's in that file_
+_For lightmaps it seems like it also reads the filepath from the associated .jsb file, so it has to match what's in that file_
 
 Download DDS Utilities from https://developer.nvidia.com/gameworksdownload#?dn=dds-utilities-8-31, or another way of creating dds files with
 different compression.
