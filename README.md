@@ -43,6 +43,7 @@ different compression.
     - blender color space: Linear      
 
 Import the FM Material node group and use that to assign your textures too, exporting the textures will not work without it.
+
 <img src="images/node_group.png" />
 
 # Limitations
